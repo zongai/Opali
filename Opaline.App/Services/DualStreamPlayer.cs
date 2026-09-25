@@ -129,11 +129,11 @@ public sealed class DualStreamPlayer : IDisposable
                     AudioPlayer.Position = VideoPlayer.Position;
 
                 // Mirror play/pause state
-                if (VideoPlayer.CurrentState == MediaPlaybackState.Playing
-                    && AudioPlayer.CurrentState != MediaPlaybackState.Playing)
+                if (VideoPlayer.CurrentState == MediaPlayerState.Playing
+                    && AudioPlayer.CurrentState != MediaPlayerState.Playing)
                     AudioPlayer.Play();
-                else if (VideoPlayer.CurrentState == MediaPlaybackState.Paused
-                         && AudioPlayer.CurrentState == MediaPlaybackState.Playing)
+                else if (VideoPlayer.CurrentState == MediaPlayerState.Paused
+                         && AudioPlayer.CurrentState == MediaPlayerState.Playing)
                     AudioPlayer.Pause();
             }
             catch
