@@ -42,14 +42,38 @@ public sealed partial class InnertubeClient
 
     public async Task<HomeFeed> GetHomeFeedAsync(string? continuation = null, CancellationToken ct = default)
     {
-        // Browse endpoints work reliably with WEB client (ANDROID rejects some FE* ids)
+        // Prefer classic browse; modern home often returns Element/lockup shells with no videos.
         var body = BuildContext(continuation is null
             ? new { browseId = "FEwhat_to_watch" }
             : new { continuation },
             ClientIdentity.Web);
 
         var json = await PostAsync("browse", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
-        return ParseHomeFeed(json);
+        var feed = ParseHomeFeed(json);
+        if (feed.Items.Count > 0 || continuation is not null)
+            return feed;
+
+        // Fallback: seed home from popular search queries (stable videoRenderer payload)
+        var merged = new List<FeedItem>();
+        var seen = new HashSet<string>();
+        foreach (var q in new[] { "music", "news", "gaming", "podcast" })
+        {
+            try
+            {
+                var page = await SearchAsync(q, null, ct).ConfigureAwait(false);
+                foreach (var it in page.Items)
+                {
+                    if (it is VideoSearchItem v && seen.Add(v.Video.Id))
+                        merged.Add(new VideoFeedItem { Id = v.Video.Id, Video = v.Video });
+                }
+            }
+            catch
+            {
+                // ignore individual query failures
+            }
+            if (merged.Count >= 40) break;
+        }
+        return new HomeFeed { Items = merged, ContinuationToken = null };
     }
 
     public async Task<HomeFeed> GetSubscriptionsFeedAsync(string? continuation = null, CancellationToken ct = default)
@@ -193,11 +217,20 @@ public sealed partial class InnertubeClient
     private static HomeFeed ParseHomeFeed(JsonNode json)
     {
         var items = new List<FeedItem>();
-        // Walk common paths: contents.twoColumnBrowseResultsRenderer / singleColumnBrowseResultsRenderer
-        // For a real port, copy the rich parsing logic from iOS Parsing/ folder.
         TryExtractVideos(json, items);
+        // Dedupe by video id (walk visits nested copies)
+        var seen = new HashSet<string>();
+        var unique = new List<FeedItem>();
+        foreach (var it in items)
+        {
+            if (it is VideoFeedItem v)
+            {
+                if (!seen.Add(v.Video.Id)) continue;
+            }
+            unique.Add(it);
+        }
         var continuation = FindContinuation(json);
-        return new HomeFeed { Items = items, ContinuationToken = continuation };
+        return new HomeFeed { Items = unique, ContinuationToken = continuation };
     }
 
     private static WatchPage ParseWatchPage(JsonNode json, string videoId)
@@ -279,12 +312,32 @@ public sealed partial class InnertubeClient
     {
         if (node is JsonObject obj)
         {
-            if (obj.TryGetPropertyValue("videoRenderer", out var vr) && vr is not null)
+            // Classic renderers
+            foreach (var key in new[] { "videoRenderer", "gridVideoRenderer", "compactVideoRenderer", "videoWithContextRenderer" })
             {
-                var v = ParseVideoRenderer(vr);
+                if (obj.TryGetPropertyValue(key, out var vr) && vr is not null)
+                {
+                    var v = ParseVideoRenderer(vr);
+                    if (v is not null)
+                        items.Add(new VideoFeedItem { Id = v.Id, Video = v });
+                }
+            }
+
+            // Modern lockup (WEB channel / some shelves)
+            if (obj.TryGetPropertyValue("lockupViewModel", out var lockup) && lockup is not null)
+            {
+                var v = ParseLockupViewModel(lockup);
                 if (v is not null)
                     items.Add(new VideoFeedItem { Id = v.Id, Video = v });
             }
+
+            if (obj.TryGetPropertyValue("channelVideoPlayerRenderer", out var cvp) && cvp is not null)
+            {
+                var v = ParseVideoRenderer(cvp);
+                if (v is not null)
+                    items.Add(new VideoFeedItem { Id = v.Id, Video = v });
+            }
+
             foreach (var kv in obj)
                 if (kv.Value is not null)
                     TryExtractVideos(kv.Value, items);
@@ -297,13 +350,93 @@ public sealed partial class InnertubeClient
         }
     }
 
+    private static Video? ParseLockupViewModel(JsonNode lockup)
+    {
+        var contentType = lockup["contentType"]?.GetValue<string>() ?? "";
+        if (contentType.Length > 0 && contentType is not "LOCKUP_CONTENT_TYPE_VIDEO")
+            return null;
+
+        var id = lockup["contentId"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(id) || id.Length is not 11)
+            return null;
+
+        var meta = lockup["metadata"]?["lockupMetadataViewModel"];
+        var title = meta?["title"]?["content"]?.GetValue<string>() ?? "Untitled";
+
+        // Optional secondary lines: channel / views
+        string? channel = null;
+        string? viewsText = null;
+        if (meta?["metadata"]?["contentMetadataViewModel"]?["metadataRows"] is JsonArray rows)
+        {
+            foreach (var row in rows)
+            {
+                if (row?["metadataParts"] is not JsonArray parts) continue;
+                foreach (var part in parts)
+                {
+                    var text = part?["text"]?["content"]?.GetValue<string>();
+                    if (string.IsNullOrEmpty(text)) continue;
+                    if (text.Contains("view", StringComparison.OrdinalIgnoreCase) ||
+                        text.Contains("watching", StringComparison.OrdinalIgnoreCase))
+                        viewsText ??= text;
+                    else
+                        channel ??= text;
+                }
+            }
+        }
+
+        string? thumb = null;
+        if (lockup["contentImage"]?["thumbnailViewModel"]?["image"]?["sources"] is JsonArray sources)
+            thumb = sources.LastOrDefault()?["url"]?.GetValue<string>();
+
+        // Duration from badge overlay
+        TimeSpan? duration = null;
+        if (lockup["contentImage"]?["thumbnailViewModel"]?["overlays"] is JsonArray overlays)
+        {
+            foreach (var ov in overlays)
+            {
+                var badge = ov?["thumbnailBottomOverlayViewModel"]?["badges"]?.AsArray()?.FirstOrDefault()
+                    ?["thumbnailBadgeViewModel"]?["text"]?.GetValue<string>();
+                if (!string.IsNullOrEmpty(badge) && badge.Contains(':'))
+                {
+                    var parts = badge.Split(':').Select(p => int.TryParse(p, out var n) ? n : 0).ToArray();
+                    duration = parts.Length switch
+                    {
+                        3 => new TimeSpan(parts[0], parts[1], parts[2]),
+                        2 => new TimeSpan(0, parts[0], parts[1]),
+                        _ => null
+                    };
+                    break;
+                }
+            }
+        }
+
+        return new Video
+        {
+            Id = id,
+            Title = title,
+            ChannelTitle = channel,
+            ThumbnailUrl = thumb,
+            Duration = duration,
+            ViewCount = ParseViewCount(viewsText)
+        };
+    }
+
     private static void TryExtractSearchItems(JsonNode node, List<SearchItem> items)
     {
         if (node is JsonObject obj)
         {
-            if (obj.TryGetPropertyValue("videoRenderer", out var vr) && vr is not null)
+            foreach (var key in new[] { "videoRenderer", "gridVideoRenderer", "compactVideoRenderer" })
             {
-                var v = ParseVideoRenderer(vr);
+                if (obj.TryGetPropertyValue(key, out var vr) && vr is not null)
+                {
+                    var v = ParseVideoRenderer(vr);
+                    if (v is not null)
+                        items.Add(new VideoSearchItem { Id = v.Id, Video = v });
+                }
+            }
+            if (obj.TryGetPropertyValue("lockupViewModel", out var lockup) && lockup is not null)
+            {
+                var v = ParseLockupViewModel(lockup);
                 if (v is not null)
                     items.Add(new VideoSearchItem { Id = v.Id, Video = v });
             }

@@ -42,7 +42,7 @@ public sealed partial class MainWindow : Window
                 {
                     var dpi = GetDpiForWindow(hwnd);
                     var scale = dpi > 0 ? dpi / 96.0 : 1.0;
-                    AppWindow.Resize(new SizeInt32((int)(1280 * scale), (int)(800 * scale)));
+                    AppWindow.Resize(new SizeInt32((int)(1020 * scale), (int)(680 * scale)));
                 }
             }
             catch (Exception ex) { CrashLog.Write("MainWindow.Resize", ex); }

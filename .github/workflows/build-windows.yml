@@ -53,43 +53,20 @@ jobs:
             -p:PublishTrimmed=false `
             -p:PublishSingleFile=false `
             -p:GenerateAppxPackageOnBuild=false `
-            -o publish/win-x64-sc
+            -o publish/win-x64
 
       - name: Verify self-contained payload
         shell: pwsh
         run: |
-          $dir = "publish/win-x64-sc"
+          $dir = "publish/win-x64"
           foreach ($n in @("Opaline.App.exe","Microsoft.WindowsAppRuntime.dll","Microsoft.WinUI.dll","run-opaline.cmd")) {
             if (-not (Test-Path (Join-Path $dir $n))) { throw "MISSING $n" }
             Write-Host "OK $n"
           }
 
-      - name: Publish framework-dependent (needs Windows App Runtime 2.5 installed)
-        run: |
-          dotnet publish Opaline.App/Opaline.App.csproj `
-            -c Release `
-            -r win-x64 `
-            --self-contained false `
-            -p:Platform=x64 `
-            -p:WindowsPackageType=None `
-            -p:WindowsAppSDKSelfContained=false `
-            -p:WindowsAppSdkBootstrapInitialize=true `
-            -p:EnableMsixTooling=true `
-            -p:PublishTrimmed=false `
-            -p:PublishSingleFile=false `
-            -p:GenerateAppxPackageOnBuild=false `
-            -o publish/win-x64-fd
-
       - uses: actions/upload-artifact@v4
         with:
-          name: Opaline-Windows-x64-SelfContained
-          path: publish/win-x64-sc
-          if-no-files-found: error
-          retention-days: 14
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Opaline-Windows-x64-FrameworkDependent
-          path: publish/win-x64-fd
+          name: Opaline-Windows-x64
+          path: publish/win-x64
           if-no-files-found: error
           retention-days: 14
