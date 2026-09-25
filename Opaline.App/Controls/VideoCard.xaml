@@ -13,10 +13,8 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- Thumbnail -->
             <Grid Grid.Row="0" Height="180" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-                <Image x:Name="ThumbImage"
-                       Stretch="UniformToFill"
+                <Image x:Name="ThumbImage" Stretch="UniformToFill" />
                 <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
                         Margin="0,0,8,8" Padding="6,2"
                         Background="#CC000000" CornerRadius="4">
@@ -27,7 +25,6 @@
                 </Border>
             </Grid>
 
-            <!-- Meta -->
             <StackPanel Grid.Row="1" Padding="12,10,12,12" Spacing="4">
                 <TextBlock x:Name="TitleText"
                            TextWrapping="WrapWholeWords"
