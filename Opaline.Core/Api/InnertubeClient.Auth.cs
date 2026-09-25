@@ -18,7 +18,7 @@ public sealed partial class InnertubeClient
             ? BuildContext(new { browseId = "FEwhat_to_watch" }, ClientIdentity.Web)
             : BuildContext(new { continuation }, ClientIdentity.Web);
 
-        var json = await PostAsync("browse", body, ClientIdentity.Web, ct).ConfigureAwait(false);
+        var json = await PostAsync("browse", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
         var feed = ParseHomeFeed(json);
 
         var shorts = feed.Items
@@ -64,6 +64,7 @@ public sealed partial class InnertubeClient
         string endpoint,
         object body,
         ClientIdentity? identity,
+        bool sendAuth,
         CancellationToken ct)
     {
         var id = identity ?? _identity;
@@ -74,14 +75,18 @@ public sealed partial class InnertubeClient
             "application/json");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
-        // Per-request client headers (override any DefaultRequestHeaders)
         request.Headers.TryAddWithoutValidation("User-Agent", id.UserAgent);
         request.Headers.TryAddWithoutValidation("X-YouTube-Client-Name", id.ClientNameId);
         request.Headers.TryAddWithoutValidation("X-YouTube-Client-Version", id.ClientVersion);
         request.Headers.TryAddWithoutValidation("Origin", "https://www.youtube.com");
-        request.Headers.TryAddWithoutValidation("Referer", "https://www.youtube.com/");
+        // TV bearer tokens pair with /tv referer; WEB stays on www
+        request.Headers.TryAddWithoutValidation(
+            "Referer",
+            id.ClientName == "TVHTML5" ? "https://www.youtube.com/tv" : "https://www.youtube.com/");
 
-        if (_oauth is not null)
+        // Device-code OAuth is a TV token. Attaching it to WEB requests causes
+        // INVALID_ARGUMENT. Only send Bearer for TV (and explicit opt-in).
+        if (sendAuth && _oauth is not null)
         {
             var token = await _oauth.GetValidAccessTokenAsync(ct).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(token))

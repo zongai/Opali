@@ -48,18 +48,19 @@ public sealed partial class InnertubeClient
             : new { continuation },
             ClientIdentity.Web);
 
-        var json = await PostAsync("browse", body, ClientIdentity.Web, ct).ConfigureAwait(false);
+        var json = await PostAsync("browse", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
         return ParseHomeFeed(json);
     }
 
     public async Task<HomeFeed> GetSubscriptionsFeedAsync(string? continuation = null, CancellationToken ct = default)
     {
+        // Device-code OAuth is a TV token — use TVHTML5 + Bearer (WEB+Bearer → 400)
         var body = BuildContext(continuation is null
             ? new { browseId = "FEsubscriptions" }
             : new { continuation },
-            ClientIdentity.Web);
+            ClientIdentity.Tv);
 
-        var json = await PostAsync("browse", body, ClientIdentity.Web, ct).ConfigureAwait(false);
+        var json = await PostAsync("browse", body, ClientIdentity.Tv, sendAuth: true, ct).ConfigureAwait(false);
         return ParseHomeFeed(json);
     }
 
@@ -74,7 +75,7 @@ public sealed partial class InnertubeClient
             racyCheckOk = true
         }, ClientIdentity.Android);
 
-        var json = await PostAsync("player", body, ClientIdentity.Android, ct).ConfigureAwait(false);
+        var json = await PostAsync("player", body, ClientIdentity.Android, sendAuth: false, ct).ConfigureAwait(false);
         return ParseWatchPage(json, videoId);
     }
 
@@ -87,7 +88,7 @@ public sealed partial class InnertubeClient
             : new { continuation };
 
         var body = BuildContext(payload, ClientIdentity.Web);
-        var json = await PostAsync("search", body, ClientIdentity.Web, ct).ConfigureAwait(false);
+        var json = await PostAsync("search", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
         return ParseSearchPage(json);
     }
 
@@ -121,7 +122,7 @@ public sealed partial class InnertubeClient
     public async Task<Channel> GetChannelAsync(string channelId, CancellationToken ct = default)
     {
         var body = BuildContext(new { browseId = channelId }, ClientIdentity.Web);
-        var json = await PostAsync("browse", body, ClientIdentity.Web, ct).ConfigureAwait(false);
+        var json = await PostAsync("browse", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
         return ParseChannel(json, channelId);
     }
 
@@ -130,8 +131,9 @@ public sealed partial class InnertubeClient
     private object BuildContext(object endpointPayload, ClientIdentity? identity = null)
     {
         var id = identity ?? _identity;
-        object client = id.ClientName == "WEB"
-            ? new
+        object client = id.ClientName switch
+        {
+            "WEB" => new
             {
                 clientName = "WEB",
                 clientVersion = id.ClientVersion,
@@ -145,8 +147,18 @@ public sealed partial class InnertubeClient
                 userAgent = id.UserAgent,
                 timeZone = "UTC",
                 utcOffsetMinutes = 0
-            }
-            : new
+            },
+            "TVHTML5" => new
+            {
+                clientName = "TVHTML5",
+                clientVersion = id.ClientVersion,
+                hl = "en",
+                gl = "US",
+                platform = "TV",
+                timeZone = "UTC",
+                utcOffsetMinutes = 0
+            },
+            _ => new
             {
                 clientName = id.ClientName,
                 clientVersion = id.ClientVersion,
@@ -158,7 +170,8 @@ public sealed partial class InnertubeClient
                 androidSdkVersion = 34,
                 timeZone = "UTC",
                 utcOffsetMinutes = 0
-            };
+            }
+        };
 
         var dict = new Dictionary<string, object?>
         {
@@ -499,5 +512,15 @@ public sealed class ClientIdentity
         ClientVersion = "2.20260206.01.00",
         UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
         ApiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+    };
+
+    /// <summary>TV client — matches device-code OAuth tokens (bearer works here).</summary>
+    public static ClientIdentity Tv { get; } = new()
+    {
+        ClientName = "TVHTML5",
+        ClientNameId = "7",
+        ClientVersion = "7.20260311.12.00",
+        UserAgent = "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version",
+        ApiKey = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w"
     };
 }
