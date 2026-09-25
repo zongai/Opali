@@ -97,7 +97,7 @@
                         <DataTemplate x:DataType="models:CommentThread">
                             <StackPanel Spacing="2" Margin="0,0,0,12" MaxWidth="480">
                                 <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}">
-                                    <Run Text="{x:Bind Author}" />
+                                    <Run Text="{x:Bind AuthorName}" />
                                     <Run Text="  " />
                                     <Run Text="{x:Bind PublishedTime}" FontSize="12" />
                                 </TextBlock>

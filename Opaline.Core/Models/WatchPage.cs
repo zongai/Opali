@@ -60,3 +60,11 @@ public sealed class CommentThread
     public int ReplyCount { get; init; }
     public IReadOnlyList<CommentThread>? Replies { get; init; }
 }
+
+
+public sealed class CommentsPage
+{
+    public IReadOnlyList<CommentThread> Comments { get; init; } = Array.Empty<CommentThread>();
+    public string? ContinuationToken { get; init; }
+    public long? TotalCount { get; init; }
+}

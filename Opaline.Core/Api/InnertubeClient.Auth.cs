@@ -156,7 +156,7 @@ public sealed partial class InnertubeClient
                         list.Add(new CommentThread
                         {
                             Id = id,
-                            Author = author,
+                            AuthorName = author,
                             AuthorAvatarUrl = avatar,
                             Text = text,
                             PublishedTime = published,
