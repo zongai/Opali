@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using Opaline.App.Services;
 using Opaline.App.ViewModels;
+using Opaline.Core.Services.SponsorBlock;
 
 namespace Opaline.App.Views;
 
