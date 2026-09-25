@@ -23,8 +23,8 @@ public sealed class WatchPage
 
 public sealed class StreamInfo
 {
-    public string Url { get; init; }
-    public string MimeType { get; init; }
+    public string Url { get; init; } = string.Empty;
+    public string MimeType { get; init; } = string.Empty;
     public int? Width { get; init; }
     public int? Height { get; init; }
     public int? Fps { get; init; }
@@ -51,10 +51,10 @@ public sealed class StreamInfo
 
 public sealed class CommentThread
 {
-    public string Id { get; init; }
-    public string AuthorName { get; init; }
+    public string Id { get; init; } = string.Empty;
+    public string AuthorName { get; init; } = string.Empty;
     public string? AuthorAvatarUrl { get; init; }
-    public string Text { get; init; }
+    public string Text { get; init; } = string.Empty;
     public long? LikeCount { get; init; }
     public DateTimeOffset? PublishedAt { get; init; }
     public int ReplyCount { get; init; }

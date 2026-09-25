@@ -18,60 +18,106 @@ public sealed partial class MainWindow : Window
     public ShellViewModel ViewModel { get; }
 
     private readonly INavigationService _nav;
-    private readonly IYouTubeService? _yt; // resolved lazily for suggestions
 
     public MainWindow()
     {
-        ViewModel = App.Services.GetRequiredService<ShellViewModel>();
-        _nav = App.Services.GetRequiredService<INavigationService>();
+        try
+        {
+            ViewModel = App.Services.GetRequiredService<ShellViewModel>();
+            _nav = App.Services.GetRequiredService<INavigationService>();
 
-        InitializeComponent();
-        ExtendsContentIntoTitleBar = true;
+            InitializeComponent();
 
-        // Attach theme service to this window
-        App.Services.GetRequiredService<IThemeService>().Attach(this);
+            try
+            {
+                ExtendsContentIntoTitleBar = true;
+            }
+            catch (Exception ex)
+            {
+                CrashLog.Write("MainWindow.ExtendsContentIntoTitleBar", ex);
+            }
 
-        // Size window ~1280×800 DIP
-        var hwnd = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
-        var scale = GetDpiForWindow(hwnd) / 96.0;
-        AppWindow.Resize(new SizeInt32((int)(1280 * scale), (int)(800 * scale)));
+            try
+            {
+                App.Services.GetRequiredService<IThemeService>().Attach(this);
+            }
+            catch (Exception ex)
+            {
+                CrashLog.Write("MainWindow.ThemeAttach", ex);
+            }
 
-        _nav.Initialize(ContentFrame);
-        ContentFrame.Navigated += ContentFrame_Navigated;
+            try
+            {
+                // Safe resize — never let DPI helpers kill startup
+                var hwnd = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
+                if (hwnd != IntPtr.Zero)
+                {
+                    var dpi = GetDpiForWindow(hwnd);
+                    var scale = dpi > 0 ? dpi / 96.0 : 1.0;
+                    AppWindow.Resize(new SizeInt32((int)(1280 * scale), (int)(800 * scale)));
+                }
+            }
+            catch (Exception ex)
+            {
+                CrashLog.Write("MainWindow.Resize", ex);
+            }
+
+            _nav.Initialize(ContentFrame);
+            ContentFrame.Navigated += ContentFrame_Navigated;
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("MainWindow.ctor", ex);
+            throw;
+        }
     }
 
     private void NavView_Loaded(object sender, RoutedEventArgs e)
     {
-        // Default to Home
-        NavView.SelectedItem = NavView.MenuItems[0];
-        _nav.Navigate(typeof(HomePage));
+        try
+        {
+            if (NavView.MenuItems.Count > 0)
+                NavView.SelectedItem = NavView.MenuItems[0];
+            _nav.Navigate(typeof(HomePage));
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("NavView_Loaded", ex);
+        }
     }
 
     private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        if (args.IsSettingsSelected)
+        try
         {
-            _nav.Navigate(typeof(SettingsPage));
-            return;
-        }
-
-        if (args.SelectedItem is NavigationViewItem item && item.Tag is string tag)
-        {
-            switch (tag)
+            if (args.IsSettingsSelected)
             {
-                case "home":
-                    _nav.Navigate(typeof(HomePage));
-                    break;
-                case "shorts":
-                    _nav.Navigate(typeof(ShortsPage));
-                    break;
-                case "subscriptions":
-                    _nav.Navigate(typeof(SubscriptionsPage));
-                    break;
-                case "library":
-                    _nav.Navigate(typeof(LibraryPage));
-                    break;
+                _nav.Navigate(typeof(SettingsPage));
+                return;
             }
+
+            if (args.SelectedItem is NavigationViewItem item && item.Tag is string tag)
+            {
+                switch (tag)
+                {
+                    case "home":
+                        _nav.Navigate(typeof(HomePage));
+                        break;
+                    case "shorts":
+                        _nav.Navigate(typeof(ShortsPage));
+                        break;
+                    case "subscriptions":
+                        _nav.Navigate(typeof(SubscriptionsPage));
+                        break;
+                    case "library":
+                        _nav.Navigate(typeof(LibraryPage));
+                        break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("NavView_SelectionChanged", ex);
         }
     }
 
@@ -98,7 +144,7 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            var yt = App.Services.GetRequiredService<Opaline.Core.Services.IYouTubeService>();
+            var yt = App.Services.GetRequiredService<IYouTubeService>();
             var suggestions = await yt.GetSuggestionsAsync(q);
             sender.ItemsSource = suggestions;
         }

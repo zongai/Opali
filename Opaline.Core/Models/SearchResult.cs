@@ -8,7 +8,7 @@ public sealed class SearchPage
 
 public abstract class SearchItem
 {
-    public string Id { get; init; }
+    public string Id { get; init; } = string.Empty;
 }
 
 public sealed class VideoSearchItem : SearchItem

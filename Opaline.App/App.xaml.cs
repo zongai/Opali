@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Opaline.Core.Api;
 using Opaline.Core.Auth;
 using Opaline.Core.Playback;
@@ -19,19 +21,55 @@ public partial class App : Application
 
     public App()
     {
-        InitializeComponent();
-        Services = ConfigureServices();
+        // Capture anything that would otherwise silent-exit
+        UnhandledException += (_, e) =>
+        {
+            CrashLog.Write("App.UnhandledException", e.Exception);
+            e.Handled = true; // try to keep process alive long enough to show UI
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            CrashLog.Write("AppDomain.UnhandledException",
+                e.ExceptionObject as Exception);
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            CrashLog.Write("TaskScheduler.UnobservedTaskException", e.Exception);
+            e.SetObserved();
+        };
+
+        try
+        {
+            InitializeComponent();
+            Services = ConfigureServices();
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("App.ctor", ex);
+            throw;
+        }
     }
 
     private static IServiceProvider ConfigureServices()
     {
         var sc = new ServiceCollection();
-        sc.AddSingleton(_ => new HttpClient { Timeout = TimeSpan.FromSeconds(45) });
+
+        // Separate clients: shared DefaultRequestHeaders on one instance is racy
+        sc.AddSingleton(_ =>
+        {
+            var http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
+            return http;
+        });
+
         sc.AddSingleton<ITokenStore, FileTokenStore>();
-        sc.AddSingleton(sp => new OAuthClient(sp.GetRequiredService<HttpClient>(), sp.GetRequiredService<ITokenStore>()));
+        sc.AddSingleton(sp => new OAuthClient(
+            sp.GetRequiredService<HttpClient>(),
+            sp.GetRequiredService<ITokenStore>()));
         sc.AddSingleton(sp =>
         {
-            var client = new InnertubeClient(sp.GetRequiredService<HttpClient>(), ClientIdentity.Android);
+            // Fresh HttpClient for Innertube so User-Agent headers do not clash with OAuth
+            var http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
+            var client = new InnertubeClient(http, ClientIdentity.Android);
             client.AttachAuth(sp.GetRequiredService<OAuthClient>());
             return client;
         });
@@ -61,7 +99,33 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _window = new MainWindow();
-        _window.Activate();
+        try
+        {
+            _window = new MainWindow();
+            _window.Activate();
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("OnLaunched", ex);
+            // Last-ditch: try a bare window so the user sees something
+            try
+            {
+                var fallback = new Window();
+                fallback.Content = new TextBlock
+                {
+                    Text = "Opaline failed to start.\n\n" + ex.Message +
+                           "\n\nDetails: " + CrashLog.LogPath,
+                    TextWrapping = TextWrapping.WrapWholeWords,
+                    Margin = new Thickness(24),
+                };
+                fallback.Activate();
+                _window = fallback;
+            }
+            catch (Exception ex2)
+            {
+                CrashLog.Write("OnLaunched.fallback", ex2);
+                throw;
+            }
+        }
     }
 }

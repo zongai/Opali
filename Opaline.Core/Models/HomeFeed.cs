@@ -8,7 +8,7 @@ public sealed class HomeFeed
 
 public abstract class FeedItem
 {
-    public string Id { get; init; }
+    public string Id { get; init; } = string.Empty;
 }
 
 public sealed class VideoFeedItem : FeedItem
@@ -18,13 +18,13 @@ public sealed class VideoFeedItem : FeedItem
 
 public sealed class ShelfFeedItem : FeedItem
 {
-    public string Title { get; init; }
+    public string Title { get; init; } = string.Empty;
     public IReadOnlyList<Video> Videos { get; init; }
 }
 
 public sealed class CategoryChip
 {
-    public string Id { get; init; }
-    public string Title { get; init; }
+    public string Id { get; init; } = string.Empty;
+    public string Title { get; init; } = string.Empty;
     public bool IsSelected { get; set; }
 }
