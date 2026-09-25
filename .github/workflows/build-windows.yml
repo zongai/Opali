@@ -33,11 +33,11 @@ jobs:
             /p:WindowsPackageType=None `
             /p:WindowsAppSDKSelfContained=true `
             /p:SelfContained=true `
-            /p:EnableMsixTooling=false `
+            /p:EnableMsixTooling=true `
             /p:GenerateAppxPackageOnBuild=false `
             /restore
 
-      - name: Publish self-contained win-x64 (WASDK 2.5)
+      - name: Publish self-contained win-x64
         run: |
           dotnet publish Opaline.App/Opaline.App.csproj `
             -c Release `
@@ -46,40 +46,33 @@ jobs:
             -p:Platform=x64 `
             -p:WindowsPackageType=None `
             -p:WindowsAppSDKSelfContained=true `
-            -p:WindowsAppSdkSelfContained=true `
-            -p:WindowsAppSdkDeploymentManagerInitialize=false `
-            -p:EnableMsixTooling=false `
-            -p:EnableCoreMrtTooling=false `
+            -p:EnableMsixTooling=true `
+            -p:WindowsAppSdkUndockedRegFreeWinRTInitialize=true `
+            -p:PublishTrimmed=false `
             -p:PublishSingleFile=false `
             -p:PublishReadyToRun=false `
+            -p:GenerateAppxPackageOnBuild=false `
             -o publish/win-x64
 
-      - name: Verify embedded Windows App Runtime 2.x
+      - name: Verify runtime payload
         shell: pwsh
         run: |
           $dir = "publish/win-x64"
-          Write-Host "=== Key files ==="
           $needles = @(
             "Opaline.App.exe",
             "Microsoft.WindowsAppRuntime.Bootstrap.dll",
             "Microsoft.WindowsAppRuntime.dll",
-            "Microsoft.WinUI.dll"
+            "Microsoft.WinUI.dll",
+            "Microsoft.WindowsAppRuntime.Bootstrap.Net.dll"
           )
-          $missing = $false
           foreach ($n in $needles) {
             $f = Join-Path $dir $n
-            if (Test-Path $f) { Write-Host "OK  $n  $((Get-Item $f).Length) bytes" }
-            else { Write-Host "MISSING  $n"; $missing = $true }
+            if (Test-Path $f) { Write-Host "OK  $n  $((Get-Item $f).Length)" }
+            else { Write-Host "MISSING  $n"; exit 1 }
           }
-          Write-Host ""
-          Write-Host "=== WindowsAppRuntime* ==="
-          Get-ChildItem $dir -Recurse -Filter "*WindowsAppRuntime*" | ForEach-Object {
-            Write-Host ("{0,-70} {1,12}" -f $_.Name, $_.Length)
-          }
-          # Ensure we are not shipping a 1.6-only bootstrap that asks for system runtime
-          $bootstrap = Join-Path $dir "Microsoft.WindowsAppRuntime.Bootstrap.dll"
-          if (-not (Test-Path $bootstrap)) { throw "Bootstrap DLL missing — self-contained failed" }
-          if ($missing) { throw "Required runtime files missing from publish output" }
+          # App.pri / resources often required
+          Get-ChildItem $dir -Filter "*.pri" | ForEach-Object { Write-Host "PRI $($_.Name) $($_.Length)" }
+          Write-Host "File count:" (Get-ChildItem $dir -File).Count
 
       - uses: actions/upload-artifact@v4
         with:
