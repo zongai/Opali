@@ -30,7 +30,7 @@
   <ItemGroup>
     <!-- Windows App SDK 2.5.1 (stable, Sept 2026) -->
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
   </ItemGroup>
