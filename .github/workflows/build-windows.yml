@@ -11,7 +11,7 @@ jobs:
   build:
     name: Build (x64 Release)
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
@@ -19,6 +19,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+
+      - name: Install Windows workload
+        run: dotnet workload install windows --skip-manifest-update
+        continue-on-error: true
 
       - name: Restore
         run: dotnet restore Opaline.Windows.sln
@@ -30,19 +34,31 @@ jobs:
         id: buildapp
         continue-on-error: true
         run: |
-          dotnet build Opaline.App\Opaline.App.csproj -c Release -p:Platform=x64 -p:WindowsPackageType=None --no-restore -v:n
+          dotnet build Opaline.App\Opaline.App.csproj -c Release -p:Platform=x64 -p:WindowsPackageType=None --no-restore
 
-      - name: Show XAML compiler output.json
+      - name: Capture XamlCompiler stderr
         if: always()
         shell: pwsh
         run: |
-          $files = Get-ChildItem -Recurse Opaline.App\obj -Filter output.json -ErrorAction SilentlyContinue
-          foreach ($f in $files) {
-            Write-Host "======== $($f.FullName) ========"
-            Get-Content $f.FullName -Raw
+          $obj = Get-ChildItem -Recurse Opaline.App\obj -Directory | Where-Object { $_.Name -match 'net8' } | Select-Object -First 1
+          if ($obj) {
+            Write-Host "OBJ = $($obj.FullName)"
+            Get-ChildItem $obj.FullName | Format-Table Name, Length
+            $in = Join-Path $obj.FullName 'input.json'
+            $out = Join-Path $obj.FullName 'output.json'
+            if (Test-Path $in) {
+              $sdk = Get-ChildItem "$env:USERPROFILE\.nuget\packages\microsoft.windowsappsdk" -Directory | Sort-Object Name -Descending | Select-Object -First 1
+              $xamlc = Get-ChildItem -Recurse $sdk.FullName -Filter XamlCompiler.exe | Select-Object -First 1
+              Write-Host "XamlCompiler = $($xamlc.FullName)"
+              if ($xamlc) {
+                & $xamlc.FullName $in $out 2>&1 | Write-Host
+                if (Test-Path $out) {
+                  Write-Host "==== output.json ===="
+                  Get-Content $out -Raw
+                }
+              }
+            }
           }
-          $inputs = Get-ChildItem -Recurse Opaline.App\obj -Filter input.json -ErrorAction SilentlyContinue
-          Write-Host "input.json count: $($inputs.Count)"
 
       - name: Fail if build failed
         if: steps.buildapp.outcome == 'failure'
