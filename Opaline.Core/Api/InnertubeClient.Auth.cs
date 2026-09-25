@@ -15,10 +15,10 @@ public sealed partial class InnertubeClient
     public async Task<HomeFeed> GetShortsFeedAsync(string? continuation = null, CancellationToken ct = default)
     {
         var body = continuation is null
-            ? BuildContext(new { browseId = "FEwhat_to_watch" })
-            : BuildContext(new { continuation });
+            ? BuildContext(new { browseId = "FEwhat_to_watch" }, ClientIdentity.Web)
+            : BuildContext(new { continuation }, ClientIdentity.Web);
 
-        var json = await PostAsync("browse", body, ct).ConfigureAwait(false);
+        var json = await PostAsync("browse", body, ClientIdentity.Web, ct).ConfigureAwait(false);
         var feed = ParseHomeFeed(json);
 
         var shorts = feed.Items
@@ -60,15 +60,27 @@ public sealed partial class InnertubeClient
         return new HomeFeed { Items = shorts, ContinuationToken = feed.ContinuationToken };
     }
 
-    private async Task<JsonNode> PostAsync(string endpoint, object body, CancellationToken ct)
+    private async Task<JsonNode> PostAsync(
+        string endpoint,
+        object body,
+        ClientIdentity? identity,
+        CancellationToken ct)
     {
-        var url = $"https://www.youtube.com/youtubei/v1/{endpoint}?key={_identity.ApiKey}&prettyPrint=false";
+        var id = identity ?? _identity;
+        var url = $"https://www.youtube.com/youtubei/v1/{endpoint}?key={id.ApiKey}&prettyPrint=false";
         using var content = new StringContent(
             System.Text.Json.JsonSerializer.Serialize(body),
             Encoding.UTF8,
             "application/json");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
+        // Per-request client headers (override any DefaultRequestHeaders)
+        request.Headers.TryAddWithoutValidation("User-Agent", id.UserAgent);
+        request.Headers.TryAddWithoutValidation("X-YouTube-Client-Name", id.ClientNameId);
+        request.Headers.TryAddWithoutValidation("X-YouTube-Client-Version", id.ClientVersion);
+        request.Headers.TryAddWithoutValidation("Origin", "https://www.youtube.com");
+        request.Headers.TryAddWithoutValidation("Referer", "https://www.youtube.com/");
+
         if (_oauth is not null)
         {
             var token = await _oauth.GetValidAccessTokenAsync(ct).ConfigureAwait(false);
@@ -80,9 +92,9 @@ public sealed partial class InnertubeClient
         var raw = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
-            var snippet = raw.Length > 400 ? raw[..400] : raw;
+            var snippet = raw.Length > 500 ? raw[..500] : raw;
             throw new HttpRequestException(
-                $"InnerTube {endpoint} {(int)response.StatusCode} {response.ReasonPhrase}: {snippet}");
+                $"InnerTube {endpoint}/{id.ClientName} {(int)response.StatusCode} {response.ReasonPhrase}: {snippet}");
         }
         var node = JsonNode.Parse(raw);
         return node ?? throw new InvalidOperationException("Empty InnerTube response");

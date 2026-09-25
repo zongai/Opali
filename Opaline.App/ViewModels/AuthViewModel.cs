@@ -19,6 +19,9 @@ public partial class AuthViewModel : ObservableObject
     {
         _oauth = oauth;
         IsSignedIn = oauth.IsSignedIn;
+        StatusMessage = oauth.IsSignedIn
+            ? "Signed in (session restored)."
+            : "Not signed in.";
     }
 
     [RelayCommand]
@@ -39,7 +42,7 @@ public partial class AuthViewModel : ObservableObject
             if (tokens is not null)
             {
                 IsSignedIn = true;
-                StatusMessage = "Signed in successfully.";
+                StatusMessage = "Signed in successfully. Session saved.";
                 UserCode = null;
             }
             else

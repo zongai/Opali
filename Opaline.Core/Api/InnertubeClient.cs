@@ -42,11 +42,13 @@ public sealed partial class InnertubeClient
 
     public async Task<HomeFeed> GetHomeFeedAsync(string? continuation = null, CancellationToken ct = default)
     {
+        // Browse endpoints work reliably with WEB client (ANDROID rejects some FE* ids)
         var body = BuildContext(continuation is null
             ? new { browseId = "FEwhat_to_watch" }
-            : new { continuation });
+            : new { continuation },
+            ClientIdentity.Web);
 
-        var json = await PostAsync("browse", body, ct).ConfigureAwait(false);
+        var json = await PostAsync("browse", body, ClientIdentity.Web, ct).ConfigureAwait(false);
         return ParseHomeFeed(json);
     }
 
@@ -54,9 +56,10 @@ public sealed partial class InnertubeClient
     {
         var body = BuildContext(continuation is null
             ? new { browseId = "FEsubscriptions" }
-            : new { continuation });
+            : new { continuation },
+            ClientIdentity.Web);
 
-        var json = await PostAsync("browse", body, ct).ConfigureAwait(false);
+        var json = await PostAsync("browse", body, ClientIdentity.Web, ct).ConfigureAwait(false);
         return ParseHomeFeed(json);
     }
 
@@ -69,9 +72,9 @@ public sealed partial class InnertubeClient
             videoId,
             contentCheckOk = true,
             racyCheckOk = true
-        });
+        }, ClientIdentity.Android);
 
-        var json = await PostAsync("player", body, ct).ConfigureAwait(false);
+        var json = await PostAsync("player", body, ClientIdentity.Android, ct).ConfigureAwait(false);
         return ParseWatchPage(json, videoId);
     }
 
@@ -83,8 +86,8 @@ public sealed partial class InnertubeClient
             ? new { query }
             : new { continuation };
 
-        var body = BuildContext(payload);
-        var json = await PostAsync("search", body, ct).ConfigureAwait(false);
+        var body = BuildContext(payload, ClientIdentity.Web);
+        var json = await PostAsync("search", body, ClientIdentity.Web, ct).ConfigureAwait(false);
         return ParseSearchPage(json);
     }
 
@@ -117,37 +120,51 @@ public sealed partial class InnertubeClient
 
     public async Task<Channel> GetChannelAsync(string channelId, CancellationToken ct = default)
     {
-        var body = BuildContext(new { browseId = channelId });
-        var json = await PostAsync("browse", body, ct).ConfigureAwait(false);
+        var body = BuildContext(new { browseId = channelId }, ClientIdentity.Web);
+        var json = await PostAsync("browse", body, ClientIdentity.Web, ct).ConfigureAwait(false);
         return ParseChannel(json, channelId);
     }
 
     // ── HTTP helpers ─────────────────────────────────────────────────────
 
-    private object BuildContext(object endpointPayload)
+    private object BuildContext(object endpointPayload, ClientIdentity? identity = null)
     {
-        // Merge context into the payload via dictionary so we stay flexible
+        var id = identity ?? _identity;
+        object client = id.ClientName == "WEB"
+            ? new
+            {
+                clientName = "WEB",
+                clientVersion = id.ClientVersion,
+                hl = "en",
+                gl = "US",
+                platform = "DESKTOP",
+                osName = "Windows",
+                osVersion = "10.0",
+                browserName = "Chrome",
+                browserVersion = "140.0.0.0",
+                userAgent = id.UserAgent,
+                timeZone = "UTC",
+                utcOffsetMinutes = 0
+            }
+            : new
+            {
+                clientName = id.ClientName,
+                clientVersion = id.ClientVersion,
+                hl = "en",
+                gl = "US",
+                platform = "MOBILE",
+                osName = "Android",
+                osVersion = "14",
+                androidSdkVersion = 34,
+                timeZone = "UTC",
+                utcOffsetMinutes = 0
+            };
+
         var dict = new Dictionary<string, object?>
         {
-            ["context"] = new
-            {
-                client = new
-                {
-                    clientName = _identity.ClientName, // "ANDROID" / "WEB" — NOT the numeric header id
-                    clientVersion = _identity.ClientVersion,
-                    hl = "en",
-                    gl = "US",
-                    timeZone = "UTC",
-                    utcOffsetMinutes = 0,
-                    platform = "MOBILE",
-                    osName = "Android",
-                    osVersion = "14",
-                    androidSdkVersion = 34
-                }
-            }
+            ["context"] = new { client }
         };
 
-        // Flatten endpoint-specific fields
         foreach (var prop in endpointPayload.GetType().GetProperties())
             dict[prop.Name] = prop.GetValue(endpointPayload);
 
