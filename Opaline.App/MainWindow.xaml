@@ -14,27 +14,32 @@
             IsBackEnabled="{x:Bind ViewModel.CanGoBack, Mode=OneWay}"
             BackRequested="NavView_BackRequested"
             SelectionChanged="NavView_SelectionChanged"
-            Loaded="NavView_Loaded">
+            Loaded="NavView_Loaded"
+            AutomationProperties.AutomationId="MainNav">
 
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="Home" Tag="home">
+                <NavigationViewItem Content="Home" Tag="home"
+                                    AutomationProperties.AutomationId="NavHome">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE80F;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Shorts" Tag="shorts">
+                <NavigationViewItem Content="Shorts" Tag="shorts"
+                                    AutomationProperties.AutomationId="NavShorts">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE714;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Subscriptions" Tag="subscriptions">
+                <NavigationViewItem Content="Subscriptions" Tag="subscriptions"
+                                    AutomationProperties.AutomationId="NavSubscriptions">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8F1;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Library" Tag="library">
+                <NavigationViewItem Content="Library" Tag="library"
+                                    AutomationProperties.AutomationId="NavLibrary">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE8F1;" />
+                        <FontIcon Glyph="&#xE8A5;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
@@ -47,10 +52,13 @@
                     QuerySubmitted="SearchBox_QuerySubmitted"
                     TextChanged="SearchBox_TextChanged"
                     SuggestionChosen="SearchBox_SuggestionChosen"
-                    Width="320" />
+                    Width="320"
+                    AutomationProperties.AutomationId="MainSearch"
+                    AutomationProperties.Name="Search YouTube" />
             </NavigationView.AutoSuggestBox>
 
-            <Frame x:Name="ContentFrame" />
+            <Frame x:Name="ContentFrame"
+                   AutomationProperties.AutomationId="ContentFrame" />
         </NavigationView>
     </Grid>
 </Window>

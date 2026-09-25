@@ -15,26 +15,33 @@
 
         <Grid Grid.Row="0">
             <TextBlock Text="Home" Style="{StaticResource TitleLargeTextBlockStyle}" VerticalAlignment="Center" />
-            <Button Content="Refresh" Command="{x:Bind ViewModel.RefreshCommand}"
-                    HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}" />
+            <Button Content="Refresh"
+                    Command="{x:Bind ViewModel.RefreshCommand}"
+                    HorizontalAlignment="Right"
+                    Style="{StaticResource AccentButtonStyle}"
+                    AutomationProperties.AutomationId="HomeRefreshButton" />
         </Grid>
 
         <Grid Grid.Row="1">
             <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
                           Width="48" Height="48"
-                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          AutomationProperties.AutomationId="HomeLoading" />
 
-            <InfoBar
-Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+            <InfoBar IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
+                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
                      Severity="Error" IsClosable="True"
-                     VerticalAlignment="Top" />
+                     VerticalAlignment="Top"
+                     AutomationProperties.AutomationId="HomeErrorBar" />
 
             <GridView
                 x:Name="VideoGrid"
                 ItemsSource="{x:Bind ViewModel.Videos, Mode=OneWay}"
                 SelectionMode="None"
                 IsItemClickEnabled="True"
-                ItemClick="VideoGrid_ItemClick">
+                ItemClick="VideoGrid_ItemClick"
+                AutomationProperties.AutomationId="HomeVideoGrid"
+                AutomationProperties.Name="Home videos">
                 <GridView.ItemTemplate>
                     <DataTemplate x:DataType="models:Video">
                         <controls:VideoCard Video="{x:Bind}" Width="320" Margin="0,0,16,16" />

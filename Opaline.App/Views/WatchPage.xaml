@@ -11,27 +11,32 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="Black">
+        <Border Grid.Row="0" Background="Black"
+                AutomationProperties.AutomationId="WatchPlayerHost">
             <MediaPlayerElement
                 x:Name="Player"
                 AreTransportControlsEnabled="True"
                 AutoPlay="True"
-                Stretch="Uniform" />
+                Stretch="Uniform"
+                AutomationProperties.AutomationId="WatchPlayer"
+                AutomationProperties.Name="Video player" />
         </Border>
 
         <ProgressRing Grid.Row="0"
                       IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
                       Width="56" Height="56"
-                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                      AutomationProperties.AutomationId="WatchLoading" />
 
         <StackPanel Grid.Row="1" Padding="24,16" Spacing="8">
-            <TextBlock Text="{x:Bind ViewModel.Video.Title, Mode=OneWay}"
+            <TextBlock Text="{x:Bind ViewModel.DisplayTitle, Mode=OneWay}"
                        Style="{StaticResource TitleTextBlockStyle}"
-                       TextWrapping="WrapWholeWords" />
+                       TextWrapping="WrapWholeWords"
+                       AutomationProperties.AutomationId="WatchTitle" />
             <StackPanel Orientation="Horizontal" Spacing="16">
-                <TextBlock Text="{x:Bind ViewModel.Video.ChannelTitle, Mode=OneWay}"
+                <TextBlock Text="{x:Bind ViewModel.DisplayChannel, Mode=OneWay}"
                            Style="{StaticResource BodyStrongTextBlockStyle}" Opacity="0.8" />
-                <TextBlock Text="{x:Bind ViewModel.Video.FormattedViewCount, Mode=OneWay}" Opacity="0.6" />
+                <TextBlock Text="{x:Bind ViewModel.DisplayViews, Mode=OneWay}" Opacity="0.6" />
                 <TextBlock Text="{x:Bind ViewModel.QualityLabel, Mode=OneWay}" Opacity="0.6" />
                 <TextBlock Text="{x:Bind ViewModel.StreamKindLabel, Mode=OneWay}" Opacity="0.5" />
             </StackPanel>
@@ -42,18 +47,24 @@
                 <TextBlock Opacity="0.8">
                     <Run Text="👎 " /><Run Text="{x:Bind ViewModel.DislikeCount, Mode=OneWay}" />
                 </TextBlock>
-                <Button Content="Watch Later" Command="{x:Bind ViewModel.AddWatchLaterCommand}"
-                        Style="{StaticResource AccentButtonStyle}" Padding="12,4" />
+                <Button Content="Watch Later"
+                        Command="{x:Bind ViewModel.AddWatchLaterCommand}"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Padding="12,4"
+                        AutomationProperties.AutomationId="WatchLaterButton" />
             </StackPanel>
             <InfoBar x:Name="SkipBar" IsOpen="False" Severity="Informational"
-                     Title="SponsorBlock" IsClosable="True" />
-            <TextBlock Text="{x:Bind ViewModel.Video.Description, Mode=OneWay}"
+                     Title="SponsorBlock" IsClosable="True"
+                     AutomationProperties.AutomationId="SponsorSkipBar" />
+            <TextBlock Text="{x:Bind ViewModel.DisplayDescription, Mode=OneWay}"
                        TextWrapping="WrapWholeWords" MaxLines="4" Opacity="0.7"
                        Style="{StaticResource CaptionTextBlockStyle}" />
         </StackPanel>
 
         <InfoBar Grid.Row="2"
-Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
-                 Severity="Error" Margin="24,0" />
+                 IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
+                 Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                 Severity="Error" Margin="24,0" IsClosable="True"
+                 AutomationProperties.AutomationId="WatchErrorBar" />
     </Grid>
 </Page>

@@ -10,8 +10,10 @@
 
             <TextBlock Text="Account" Style="{StaticResource SubtitleTextBlockStyle}" />
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="Sign in" Click="SignIn_Click" />
-                <Button Content="Sign out" Click="SignOut_Click" />
+                <Button Content="Sign in" Click="SignIn_Click"
+                        AutomationProperties.AutomationId="SettingsSignIn" />
+                <Button Content="Sign out" Click="SignOut_Click"
+                        AutomationProperties.AutomationId="SettingsSignOut" />
             </StackPanel>
             <TextBlock Text="{x:Bind Auth.StatusMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" Opacity="0.8" />
             <TextBlock Text="{x:Bind Auth.UserCode, Mode=OneWay}"
@@ -21,7 +23,10 @@
             <TextBlock Text="Appearance" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="Theme" VerticalAlignment="Center" />
-                <ComboBox SelectedIndex="{x:Bind ViewModel.SelectedThemeIndex, Mode=TwoWay}" MinWidth="160">
+                <ComboBox SelectedIndex="{x:Bind ViewModel.SelectedThemeIndex, Mode=TwoWay}"
+                          MinWidth="160"
+                          AutomationProperties.AutomationId="SettingsTheme"
+                          AutomationProperties.Name="Theme">
                     <ComboBoxItem Content="System" />
                     <ComboBoxItem Content="Light" />
                     <ComboBoxItem Content="Dark" />
@@ -29,12 +34,19 @@
             </StackPanel>
 
             <TextBlock Text="Playback" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
-            <ToggleSwitch Header="SponsorBlock" IsOn="{x:Bind ViewModel.SponsorBlockEnabled, Mode=TwoWay}" />
-            <ToggleSwitch Header="Return YouTube Dislike" IsOn="{x:Bind ViewModel.RydEnabled, Mode=TwoWay}" />
+            <ToggleSwitch Header="SponsorBlock"
+                          IsOn="{x:Bind ViewModel.SponsorBlockEnabled, Mode=TwoWay}"
+                          AutomationProperties.AutomationId="SettingsSponsorBlock" />
+            <ToggleSwitch Header="Return YouTube Dislike"
+                          IsOn="{x:Bind ViewModel.RydEnabled, Mode=TwoWay}"
+                          AutomationProperties.AutomationId="SettingsRyd" />
             <TextBox Header="Solver server"
-                     Text="{x:Bind ViewModel.SolverBaseUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                     Text="{x:Bind ViewModel.SolverBaseUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     AutomationProperties.AutomationId="SettingsSolverUrl" />
 
-            <TextBlock Text="Opaline for Windows v0.3.0" Opacity="0.5" Margin="0,16,0,0" />
+            <TextBlock Text="Opaline for Windows v0.3.1" Opacity="0.5" Margin="0,16,0,0" />
+            <TextBlock Text="Crash log: crash.log (next to Opaline.App.exe)" Opacity="0.45"
+                       Style="{StaticResource CaptionTextBlockStyle}" />
         </StackPanel>
     </ScrollViewer>
 </Page>

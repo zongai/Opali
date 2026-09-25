@@ -20,6 +20,10 @@ public partial class SearchViewModel : ObservableObject
     [ObservableProperty]
     private string? errorMessage;
 
+    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+    partial void OnErrorMessageChanged(string? value) => OnPropertyChanged(nameof(HasError));
+
     [ObservableProperty]
     private string query = string.Empty;
 

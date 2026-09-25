@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Opaline.App.Services;
 
 namespace Opaline.App;
 
@@ -14,7 +15,6 @@ public static class Program
     [STAThread]
     private static void Main(string[] args)
     {
-        // Point bootstrap at the folder that contains this exe + WASDK natives
         Environment.SetEnvironmentVariable(
             "MICROSOFT_WINDOWSAPPRUNTIME_BASE_DIRECTORY",
             AppContext.BaseDirectory);
@@ -34,11 +34,10 @@ public static class Program
         {
             try
             {
-                Services.CrashLog.Write("Program.Main", ex);
-                // Native message box if WinUI never came up
+                CrashLog.Write("Program.Main", ex);
                 MessageBoxW(IntPtr.Zero,
                     "Opaline failed to start:\n\n" + ex.Message +
-                    "\n\nSee %LOCALAPPDATA%\\Opaline\\crash.log",
+                    "\n\nSee crash.log next to Opaline.App.exe",
                     "Opaline",
                     0x00000010 /* MB_ICONERROR */);
             }

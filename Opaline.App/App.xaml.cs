@@ -114,7 +114,7 @@ public partial class App : Application
                 fallback.Content = new TextBlock
                 {
                     Text = "Opaline failed to start.\n\n" + ex.Message +
-                           "\n\nDetails: " + CrashLog.LogPath,
+                           "\n\nDetails: crash.log (next to Opaline.App.exe)\n" + CrashLog.LogPath,
                     TextWrapping = TextWrapping.WrapWholeWords,
                     Margin = new Thickness(24),
                 };

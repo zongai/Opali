@@ -18,6 +18,7 @@ public sealed partial class MainWindow : Window
     public ShellViewModel ViewModel { get; }
 
     private readonly INavigationService _nav;
+    private bool _navReady;
 
     public MainWindow()
     {
@@ -28,27 +29,14 @@ public sealed partial class MainWindow : Window
 
             InitializeComponent();
 
-            try
-            {
-                ExtendsContentIntoTitleBar = true;
-            }
-            catch (Exception ex)
-            {
-                CrashLog.Write("MainWindow.ExtendsContentIntoTitleBar", ex);
-            }
+            try { ExtendsContentIntoTitleBar = true; }
+            catch (Exception ex) { CrashLog.Write("MainWindow.ExtendsContentIntoTitleBar", ex); }
+
+            try { App.Services.GetRequiredService<IThemeService>().Attach(this); }
+            catch (Exception ex) { CrashLog.Write("MainWindow.ThemeAttach", ex); }
 
             try
             {
-                App.Services.GetRequiredService<IThemeService>().Attach(this);
-            }
-            catch (Exception ex)
-            {
-                CrashLog.Write("MainWindow.ThemeAttach", ex);
-            }
-
-            try
-            {
-                // Safe resize — never let DPI helpers kill startup
                 var hwnd = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
                 if (hwnd != IntPtr.Zero)
                 {
@@ -57,10 +45,7 @@ public sealed partial class MainWindow : Window
                     AppWindow.Resize(new SizeInt32((int)(1280 * scale), (int)(800 * scale)));
                 }
             }
-            catch (Exception ex)
-            {
-                CrashLog.Write("MainWindow.Resize", ex);
-            }
+            catch (Exception ex) { CrashLog.Write("MainWindow.Resize", ex); }
 
             _nav.Initialize(ContentFrame);
             ContentFrame.Navigated += ContentFrame_Navigated;
@@ -76,9 +61,12 @@ public sealed partial class MainWindow : Window
     {
         try
         {
+            _navReady = true;
+            // Selecting first item triggers SelectionChanged → single navigate
             if (NavView.MenuItems.Count > 0)
                 NavView.SelectedItem = NavView.MenuItems[0];
-            _nav.Navigate(typeof(HomePage));
+            else
+                _nav.Navigate(typeof(HomePage));
         }
         catch (Exception ex)
         {
@@ -88,6 +76,7 @@ public sealed partial class MainWindow : Window
 
     private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
+        if (!_navReady) return;
         try
         {
             if (args.IsSettingsSelected)

@@ -31,6 +31,14 @@ public partial class WatchViewModel : ObservableObject
     [ObservableProperty] private string? dislikeCount;
     [ObservableProperty] private string? streamKindLabel;
 
+    /// <summary>Null-safe display fields for x:Bind (avoid nested Video.* paths).</summary>
+    [ObservableProperty] private string displayTitle = string.Empty;
+    [ObservableProperty] private string displayChannel = string.Empty;
+    [ObservableProperty] private string displayViews = string.Empty;
+    [ObservableProperty] private string displayDescription = string.Empty;
+
+    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
     public ObservableCollection<SponsorBlockSegment> Segments { get; } = new();
 
     public WatchViewModel(
@@ -45,6 +53,16 @@ public partial class WatchViewModel : ObservableObject
         _sponsorBlock = sponsorBlock;
         _ryd = ryd;
         _history = history;
+    }
+
+    partial void OnErrorMessageChanged(string? value) => OnPropertyChanged(nameof(HasError));
+
+    partial void OnVideoChanged(Video? value)
+    {
+        DisplayTitle = value?.Title ?? string.Empty;
+        DisplayChannel = value?.ChannelTitle ?? string.Empty;
+        DisplayViews = value?.FormattedViewCount ?? string.Empty;
+        DisplayDescription = value?.Description ?? string.Empty;
     }
 
     [RelayCommand]

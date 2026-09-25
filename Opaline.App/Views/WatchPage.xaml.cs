@@ -24,7 +24,7 @@ public sealed partial class WatchPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        _player ??= new DualStreamPlayer();
+        _player ??= new DualStreamPlayer(DispatcherQueue);
         Player.SetMediaPlayer(_player.VideoPlayer);
 
         if (e.Parameter is string videoId)
@@ -35,8 +35,11 @@ public sealed partial class WatchPage : Page
     {
         base.OnNavigatedFrom(e);
         _skipTimer?.Stop();
+        _skipTimer = null;
         _player?.Stop();
         Player.SetMediaPlayer(null);
+        _player?.Dispose();
+        _player = null;
     }
 
     private async void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -55,6 +58,7 @@ public sealed partial class WatchPage : Page
         catch (Exception ex)
         {
             ViewModel.ErrorMessage = $"Playback error: {ex.Message}";
+            CrashLog.Write("WatchPage.Playback", ex);
         }
     }
 
@@ -65,13 +69,20 @@ public sealed partial class WatchPage : Page
         _skipTimer.Tick += (_, _) =>
         {
             if (_player is null) return;
-            var pos = _player.VideoPlayer.Position.TotalSeconds;
-            var seg = ViewModel.CheckAutoSkip(pos);
-            if (seg is not null)
+            try
             {
-                _player.Seek(TimeSpan.FromSeconds(seg.EndTime));
-                SkipBar.Message = $"Skipped {seg.Category.DisplayName()} ({seg.StartTime:0}s–{seg.EndTime:0}s)";
-                SkipBar.IsOpen = true;
+                var pos = _player.VideoPlayer.Position.TotalSeconds;
+                var seg = ViewModel.CheckAutoSkip(pos);
+                if (seg is not null)
+                {
+                    _player.Seek(TimeSpan.FromSeconds(seg.EndTime));
+                    SkipBar.Message = $"Skipped {seg.Category.DisplayName()} ({seg.StartTime:0}s–{seg.EndTime:0}s)";
+                    SkipBar.IsOpen = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                CrashLog.Write("WatchPage.SkipMonitor", ex);
             }
         };
         _skipTimer.Start();

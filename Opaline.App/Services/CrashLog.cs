@@ -3,22 +3,15 @@ using System.Text;
 
 namespace Opaline.App.Services;
 
-/// <summary>Writes crash details to %LOCALAPPDATA%\Opaline\crash.log</summary>
+/// <summary>Writes crash details next to Opaline.App.exe (AppContext.BaseDirectory).</summary>
 public static class CrashLog
 {
-    public static string LogPath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Opaline",
-        "crash.log");
+    public static string LogPath { get; } = Path.Combine(AppContext.BaseDirectory, "crash.log");
 
     public static void Write(string stage, Exception? ex)
     {
         try
         {
-            var dir = Path.GetDirectoryName(LogPath);
-            if (!string.IsNullOrEmpty(dir))
-                Directory.CreateDirectory(dir);
-
             var sb = new StringBuilder();
             sb.AppendLine("======== " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " ========");
             sb.AppendLine("Stage: " + stage);

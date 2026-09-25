@@ -15,6 +15,10 @@ public partial class ShortsViewModel : ObservableObject
 
     [ObservableProperty] private bool isLoading;
     [ObservableProperty] private string? errorMessage;
+
+    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+    partial void OnErrorMessageChanged(string? value) => OnPropertyChanged(nameof(HasError));
     [ObservableProperty] private int currentIndex;
 
     public ShortsViewModel(IYouTubeService yt) => _yt = yt;

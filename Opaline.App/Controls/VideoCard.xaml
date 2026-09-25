@@ -2,9 +2,11 @@
 <UserControl
     x:Class="Opaline.App.Controls.VideoCard"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    AutomationProperties.AutomationId="VideoCard">
 
-    <Border Style="{StaticResource VideoCardStyle}"
+    <Border x:Name="RootBorder"
+            Style="{StaticResource VideoCardStyle}"
             PointerEntered="Root_PointerEntered"
             PointerExited="Root_PointerExited">
         <Grid>
@@ -13,14 +15,17 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0" Height="180" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-                <Image x:Name="ThumbImage" Stretch="UniformToFill" />
-                <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
+            <Grid Grid.Row="0" Height="180"
+                  Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                <Image x:Name="ThumbImage" Stretch="UniformToFill"
+                       AutomationProperties.Name="Thumbnail" />
+                <Border x:Name="DurationBadge"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
                         Margin="0,0,8,8" Padding="6,2"
-                        Background="#CC000000" CornerRadius="4">
+                        Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                        CornerRadius="{ThemeResource ControlCornerRadius}">
                     <TextBlock x:Name="DurationText"
-                               Foreground="White"
-                               FontSize="12"
+                               Style="{StaticResource CaptionTextBlockStyle}"
                                FontWeight="SemiBold" />
                 </Border>
             </Grid>

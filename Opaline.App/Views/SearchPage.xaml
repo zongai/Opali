@@ -21,7 +21,7 @@
                           Width="48" Height="48"
                           HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-            <InfoBar
+            <InfoBar IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
 Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
                      Severity="Error" VerticalAlignment="Top" />
 

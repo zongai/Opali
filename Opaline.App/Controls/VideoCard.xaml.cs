@@ -22,9 +22,15 @@ public sealed partial class VideoCard : UserControl
         set => SetValue(VideoProperty, value);
     }
 
+    private Brush? _defaultBorderBrush;
+
     public VideoCard()
     {
         InitializeComponent();
+        Loaded += (_, _) =>
+        {
+            _defaultBorderBrush = RootBorder.BorderBrush;
+        };
     }
 
     private static void OnVideoChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -39,9 +45,11 @@ public sealed partial class VideoCard : UserControl
         ChannelText.Text = v.ChannelTitle ?? string.Empty;
         ViewsText.Text = v.FormattedViewCount;
         DurationText.Text = v.FormattedDuration;
-        DurationText.Visibility = string.IsNullOrEmpty(v.FormattedDuration)
+        DurationBadge.Visibility = string.IsNullOrEmpty(v.FormattedDuration)
             ? Visibility.Collapsed
             : Visibility.Visible;
+
+        AutomationProperties.SetName(this, v.Title);
 
         if (!string.IsNullOrEmpty(v.ThumbnailUrl))
         {
@@ -54,17 +62,24 @@ public sealed partial class VideoCard : UserControl
                 ThumbImage.Source = null;
             }
         }
+        else
+        {
+            ThumbImage.Source = null;
+        }
     }
 
     private void Root_PointerEntered(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is Border b)
-            b.BorderBrush = (Brush)Application.Current.Resources["OpalineAccentBrush"];
+        if (Application.Current.Resources.TryGetValue("OpalineAccentBrush", out var brush)
+            && brush is Brush b)
+        {
+            RootBorder.BorderBrush = b;
+        }
     }
 
     private void Root_PointerExited(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is Border b)
-            b.BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
+        RootBorder.BorderBrush = _defaultBorderBrush
+            ?? (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
     }
 }

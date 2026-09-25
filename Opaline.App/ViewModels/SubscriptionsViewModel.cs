@@ -19,6 +19,10 @@ public partial class SubscriptionsViewModel : ObservableObject
     [ObservableProperty]
     private string? errorMessage;
 
+    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+    partial void OnErrorMessageChanged(string? value) => OnPropertyChanged(nameof(HasError));
+
     public SubscriptionsViewModel(IYouTubeService yt) => _yt = yt;
 
     [RelayCommand]

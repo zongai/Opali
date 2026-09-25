@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using Microsoft.UI.Dispatching;
 using Windows.Media.Core;
 using Windows.Media.Playback;
 using Windows.Media.Streaming.Adaptive;
@@ -7,12 +8,7 @@ using Windows.Media.Streaming.Adaptive;
 namespace Opaline.App.Services;
 
 /// <summary>
-/// Playback controller that supports:
-/// <list type="bullet">
-///   <item>Single URL (progressive / HLS / DASH via AdaptiveMediaSource)</item>
-///   <item>Dual adaptive streams: separate video + audio MediaPlayers kept in sync</item>
-/// </list>
-/// Attach the video <see cref="MediaPlayer"/> to a <c>MediaPlayerElement</c>.
+/// Playback controller: progressive / HLS / DASH, or dual adaptive A+V with sync.
 /// </summary>
 public sealed class DualStreamPlayer : IDisposable
 {
@@ -21,13 +17,14 @@ public sealed class DualStreamPlayer : IDisposable
 
     private bool _dual;
     private bool _syncing;
-    private DispatcherTimerHook? _syncHook;
+    private DispatcherQueueTimer? _syncTimer;
+    private readonly DispatcherQueue? _dispatcher;
 
     public bool IsDual => _dual;
 
-    /// <summary>Wire up after MediaPlayerElement.SetMediaPlayer(VideoPlayer).</summary>
-    public DualStreamPlayer()
+    public DualStreamPlayer(DispatcherQueue? dispatcher = null)
     {
+        _dispatcher = dispatcher ?? DispatcherQueue.GetForCurrentThread();
         VideoPlayer.MediaFailed += (_, e) =>
             System.Diagnostics.Debug.WriteLine($"Video failed: {e.ErrorMessage}");
         AudioPlayer.MediaFailed += (_, e) =>
@@ -41,7 +38,6 @@ public sealed class DualStreamPlayer : IDisposable
 
         if (isManifest)
         {
-            // HLS / DASH — AdaptiveMediaSource handles A+V
             try
             {
                 var result = await AdaptiveMediaSource.CreateFromUriAsync(new Uri(primaryUrl));
@@ -54,7 +50,7 @@ public sealed class DualStreamPlayer : IDisposable
             }
             catch
             {
-                // fall through to plain MediaSource
+                // fall through
             }
             VideoPlayer.Source = MediaSource.CreateFromUri(new Uri(primaryUrl));
             AudioPlayer.Source = null;
@@ -66,7 +62,6 @@ public sealed class DualStreamPlayer : IDisposable
         if (_dual)
         {
             AudioPlayer.Source = MediaSource.CreateFromUri(new Uri(audioUrl!));
-            // Mute video track if it somehow has audio; keep AudioPlayer as the only sound
             VideoPlayer.IsMuted = true;
             AudioPlayer.IsMuted = false;
             StartSyncLoop();
@@ -106,8 +101,12 @@ public sealed class DualStreamPlayer : IDisposable
 
     public void Stop()
     {
-        _syncHook?.Stop();
-        _syncHook = null;
+        if (_syncTimer is not null)
+        {
+            _syncTimer.Stop();
+            _syncTimer.Tick -= OnSyncTick;
+            _syncTimer = null;
+        }
         VideoPlayer.Pause();
         AudioPlayer.Pause();
         VideoPlayer.Source = null;
@@ -117,31 +116,41 @@ public sealed class DualStreamPlayer : IDisposable
 
     private void StartSyncLoop()
     {
-        // Re-sync audio to video every 500ms if drift exceeds 80ms
-        _syncHook?.Stop();
-        _syncHook = new DispatcherTimerHook(TimeSpan.FromMilliseconds(500), () =>
-        {
-            if (!_dual || _syncing) return;
-            try
-            {
-                var drift = (AudioPlayer.Position - VideoPlayer.Position).TotalMilliseconds;
-                if (Math.Abs(drift) > 80)
-                    AudioPlayer.Position = VideoPlayer.Position;
+        if (_dispatcher is null) return;
 
-                // Mirror play/pause state
-                if (VideoPlayer.CurrentState == MediaPlayerState.Playing
-                    && AudioPlayer.CurrentState != MediaPlayerState.Playing)
-                    AudioPlayer.Play();
-                else if (VideoPlayer.CurrentState == MediaPlayerState.Paused
-                         && AudioPlayer.CurrentState == MediaPlayerState.Playing)
-                    AudioPlayer.Pause();
-            }
-            catch
-            {
-                // players may be disposed mid-tick
-            }
-        });
-        _syncHook.Start();
+        if (_syncTimer is not null)
+        {
+            _syncTimer.Stop();
+            _syncTimer.Tick -= OnSyncTick;
+        }
+
+        _syncTimer = _dispatcher.CreateTimer();
+        _syncTimer.Interval = TimeSpan.FromMilliseconds(500);
+        _syncTimer.IsRepeating = true;
+        _syncTimer.Tick += OnSyncTick;
+        _syncTimer.Start();
+    }
+
+    private void OnSyncTick(DispatcherQueueTimer sender, object args)
+    {
+        if (!_dual || _syncing) return;
+        try
+        {
+            var drift = (AudioPlayer.Position - VideoPlayer.Position).TotalMilliseconds;
+            if (Math.Abs(drift) > 80)
+                AudioPlayer.Position = VideoPlayer.Position;
+
+            if (VideoPlayer.CurrentState == MediaPlayerState.Playing
+                && AudioPlayer.CurrentState != MediaPlayerState.Playing)
+                AudioPlayer.Play();
+            else if (VideoPlayer.CurrentState == MediaPlayerState.Paused
+                     && AudioPlayer.CurrentState == MediaPlayerState.Playing)
+                AudioPlayer.Pause();
+        }
+        catch
+        {
+            // players may be disposed mid-tick
+        }
     }
 
     public void Dispose()
@@ -150,27 +159,4 @@ public sealed class DualStreamPlayer : IDisposable
         VideoPlayer.Dispose();
         AudioPlayer.Dispose();
     }
-}
-
-/// <summary>
-/// Tiny timer abstraction so DualStreamPlayer can be unit-tested without UI thread.
-/// On UI, callers can replace with DispatcherTimer via optional hook;
-/// default uses System.Threading.Timer.
-/// </summary>
-internal sealed class DispatcherTimerHook
-{
-    private readonly Timer _timer;
-    private readonly Action _tick;
-
-    public DispatcherTimerHook(TimeSpan interval, Action tick)
-    {
-        _tick = tick;
-        _timer = new Timer(_ => _tick(), null, Timeout.Infinite, Timeout.Infinite);
-        Interval = interval;
-    }
-
-    public TimeSpan Interval { get; }
-
-    public void Start() => _timer.Change(Interval, Interval);
-    public void Stop() => _timer.Change(Timeout.Infinite, Timeout.Infinite);
 }
