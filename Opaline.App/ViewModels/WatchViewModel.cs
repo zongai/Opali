@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Opaline.App.Services;
 using Opaline.Core.Models;
 using Opaline.Core.Playback;
 using Opaline.Core.Services;
@@ -30,16 +31,16 @@ public partial class WatchViewModel : ObservableObject
     [ObservableProperty] private string? likeCount;
     [ObservableProperty] private string? dislikeCount;
     [ObservableProperty] private string? streamKindLabel;
-
-    /// <summary>Null-safe display fields for x:Bind (avoid nested Video.* paths).</summary>
     [ObservableProperty] private string displayTitle = string.Empty;
     [ObservableProperty] private string displayChannel = string.Empty;
     [ObservableProperty] private string displayViews = string.Empty;
     [ObservableProperty] private string displayDescription = string.Empty;
+    [ObservableProperty] private bool commentsLoading;
+    [ObservableProperty] private string? commentsError;
 
     public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
-
     public ObservableCollection<SponsorBlockSegment> Segments { get; } = new();
+    public ObservableCollection<CommentThread> Comments { get; } = new();
 
     public WatchViewModel(
         IYouTubeService yt,
@@ -76,17 +77,21 @@ public partial class WatchViewModel : ObservableObject
         IsManifest = false;
         IsAdaptivePair = false;
         Segments.Clear();
+        Comments.Clear();
+        AppLog.Info("Watch", $"Load {videoId}");
 
         try
         {
             var page = await _yt.GetWatchAsync(videoId);
             Video = page.Video;
             _history.AddToHistory(page.Video);
+            AppLog.Info("Watch", $"meta ok title={page.Video.Title}");
 
             var resolved = await _playback.ResolveAsync(page);
             if (resolved is null)
             {
                 ErrorMessage = "No playable stream found for this video.";
+                AppLog.Warn("Watch", "no stream");
             }
             else
             {
@@ -105,11 +110,14 @@ public partial class WatchViewModel : ObservableObject
                     StreamKind.VideoOnly => "Video only",
                     _ => resolved.Kind.ToString()
                 };
+                AppLog.Info("Watch", $"stream {StreamKindLabel} {QualityLabel}");
             }
 
+            // Parallel: SB + RYD + comments
             var sbTask = _sponsorBlock.FetchSegmentsAsync(videoId);
             var rydTask = _ryd.FetchVotesAsync(videoId);
-            await Task.WhenAll(sbTask, rydTask);
+            var commentsTask = LoadCommentsInternalAsync(videoId);
+            await Task.WhenAll(sbTask, rydTask, commentsTask);
 
             foreach (var s in await sbTask)
                 Segments.Add(s);
@@ -124,10 +132,34 @@ public partial class WatchViewModel : ObservableObject
         catch (Exception ex)
         {
             ErrorMessage = $"Failed to load video: {ex.Message}";
+            AppLog.Error("Watch", "Load failed", ex);
         }
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    private async Task LoadCommentsInternalAsync(string videoId)
+    {
+        CommentsLoading = true;
+        CommentsError = null;
+        try
+        {
+            var page = await _yt.GetCommentsAsync(videoId);
+            Comments.Clear();
+            foreach (var c in page.Comments.Take(50))
+                Comments.Add(c);
+            AppLog.Info("Watch", $"comments {Comments.Count}");
+        }
+        catch (Exception ex)
+        {
+            CommentsError = ex.Message;
+            AppLog.Error("Watch", "comments failed", ex);
+        }
+        finally
+        {
+            CommentsLoading = false;
         }
     }
 

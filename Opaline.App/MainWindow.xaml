@@ -9,8 +9,11 @@
         <NavigationView
             x:Name="NavView"
             PaneDisplayMode="Left"
+            OpenPaneLength="200"
+            CompactPaneLength="48"
             IsSettingsVisible="True"
             IsBackButtonVisible="Auto"
+            IsPaneToggleButtonVisible="True"
             IsBackEnabled="{x:Bind ViewModel.CanGoBack, Mode=OneWay}"
             BackRequested="NavView_BackRequested"
             SelectionChanged="NavView_SelectionChanged"

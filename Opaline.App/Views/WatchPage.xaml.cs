@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
@@ -13,6 +14,7 @@ public sealed partial class WatchPage : Page
     public WatchViewModel ViewModel { get; }
     private DualStreamPlayer? _player;
     private DispatcherTimer? _skipTimer;
+    private bool _isFullWindow;
 
     public WatchPage()
     {
@@ -34,6 +36,8 @@ public sealed partial class WatchPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+        if (_isFullWindow)
+            ExitFullWindow();
         _skipTimer?.Stop();
         _skipTimer = null;
         _player?.Stop();
@@ -54,12 +58,34 @@ public sealed partial class WatchPage : Page
                 ViewModel.AudioUrl,
                 ViewModel.IsManifest);
             StartSkipMonitor();
+            AppLog.Info("WatchPage", "playback started");
         }
         catch (Exception ex)
         {
             ViewModel.ErrorMessage = $"Playback error: {ex.Message}";
             CrashLog.Write("WatchPage.Playback", ex);
+            AppLog.Error("WatchPage", "playback error", ex);
         }
+    }
+
+    private void Fullscreen_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Player.IsFullWindow = !Player.IsFullWindow;
+            _isFullWindow = Player.IsFullWindow;
+            AppLog.Info("WatchPage", $"fullwindow={_isFullWindow}");
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("WatchPage", "fullscreen failed", ex);
+        }
+    }
+
+    private void ExitFullWindow()
+    {
+        try { Player.IsFullWindow = false; } catch { /* ignore */ }
+        _isFullWindow = false;
     }
 
     private void StartSkipMonitor()

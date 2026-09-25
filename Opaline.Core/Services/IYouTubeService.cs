@@ -11,4 +11,5 @@ public interface IYouTubeService
     Task<SearchPage> SearchAsync(string query, string? continuation = null, CancellationToken ct = default);
     Task<IReadOnlyList<string>> GetSuggestionsAsync(string query, CancellationToken ct = default);
     Task<Channel> GetChannelAsync(string channelId, CancellationToken ct = default);
+    Task<CommentsPage> GetCommentsAsync(string videoId, string? continuation = null, CancellationToken ct = default);
 }

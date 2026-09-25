@@ -29,4 +29,7 @@ public sealed class YouTubeService : IYouTubeService
 
     public Task<Channel> GetChannelAsync(string channelId, CancellationToken ct = default)
         => _client.GetChannelAsync(channelId, ct);
+
+    public Task<CommentsPage> GetCommentsAsync(string videoId, string? continuation = null, CancellationToken ct = default)
+        => _client.GetCommentsAsync(videoId, continuation, ct);
 }

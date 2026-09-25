@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Opaline.Core.Models;
 using Opaline.Core.Services;
+using Opaline.App.Services;
 
 namespace Opaline.App.ViewModels;
 
@@ -41,8 +42,14 @@ public partial class HomeViewModel : ObservableObject
             foreach (var item in feed.Items)
             {
                 if (item is VideoFeedItem v)
+                {
+                    // Extra client-side short filter
+                    if (v.Video.IsShort) continue;
+                    if (v.Video.Duration is { } d && d.TotalSeconds > 0 && d.TotalSeconds <= 60) continue;
                     Videos.Add(v.Video);
+                }
             }
+            AppLog.Info("Home", $"loaded {Videos.Count} videos");
             _continuation = feed.ContinuationToken;
         }
         catch (Exception ex)

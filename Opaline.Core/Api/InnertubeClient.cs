@@ -42,7 +42,8 @@ public sealed partial class InnertubeClient
 
     public async Task<HomeFeed> GetHomeFeedAsync(string? continuation = null, CancellationToken ct = default)
     {
-        // Prefer classic browse; modern home often returns Element/lockup shells with no videos.
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        // Prefer classic browse; modern home often returns Element shells with no videos.
         var body = BuildContext(continuation is null
             ? new { browseId = "FEwhat_to_watch" }
             : new { continuation },
@@ -50,30 +51,48 @@ public sealed partial class InnertubeClient
 
         var json = await PostAsync("browse", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
         var feed = ParseHomeFeed(json);
+        feed = FilterLongForm(feed);
+        System.Diagnostics.Debug.WriteLine($"[Home] browse items={feed.Items.Count} in {sw.ElapsedMilliseconds}ms");
         if (feed.Items.Count > 0 || continuation is not null)
             return feed;
 
-        // Fallback: seed home from popular search queries (stable videoRenderer payload)
+        // Fast fallback: 2 searches in parallel (not 4 sequential)
         var merged = new List<FeedItem>();
         var seen = new HashSet<string>();
-        foreach (var q in new[] { "music", "news", "gaming", "podcast" })
+        var tasks = new[]
         {
-            try
+            SearchAsync("recommended music videos", null, ct),
+            SearchAsync("trending news today", null, ct)
+        };
+        var pages = await Task.WhenAll(tasks).ConfigureAwait(false);
+        foreach (var page in pages)
+        {
+            foreach (var it in page.Items)
             {
-                var page = await SearchAsync(q, null, ct).ConfigureAwait(false);
-                foreach (var it in page.Items)
-                {
-                    if (it is VideoSearchItem v && seen.Add(v.Video.Id))
-                        merged.Add(new VideoFeedItem { Id = v.Video.Id, Video = v.Video });
-                }
+                if (it is not VideoSearchItem v) continue;
+                if (IsShortVideo(v.Video)) continue;
+                if (!seen.Add(v.Video.Id)) continue;
+                merged.Add(new VideoFeedItem { Id = v.Video.Id, Video = v.Video });
             }
-            catch
-            {
-                // ignore individual query failures
-            }
-            if (merged.Count >= 40) break;
         }
+        System.Diagnostics.Debug.WriteLine($"[Home] fallback items={merged.Count} total {sw.ElapsedMilliseconds}ms");
         return new HomeFeed { Items = merged, ContinuationToken = null };
+    }
+
+    private static HomeFeed FilterLongForm(HomeFeed feed)
+    {
+        var items = feed.Items
+            .Where(it => it is not VideoFeedItem v || !IsShortVideo(v.Video))
+            .ToList();
+        return new HomeFeed { Items = items, ContinuationToken = feed.ContinuationToken };
+    }
+
+    private static bool IsShortVideo(Video v)
+    {
+        if (v.IsShort) return true;
+        if (v.Duration is { } d && d.TotalSeconds > 0 && d.TotalSeconds <= 60)
+            return true;
+        return false;
     }
 
     public async Task<HomeFeed> GetSubscriptionsFeedAsync(string? continuation = null, CancellationToken ct = default)
