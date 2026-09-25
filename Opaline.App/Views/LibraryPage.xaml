@@ -14,44 +14,23 @@
         </Grid.RowDefinitions>
 
         <TextBlock Text="Library" Style="{StaticResource TitleLargeTextBlockStyle}" />
+        <TextBlock Grid.Row="1" Text="History" Style="{StaticResource SubtitleTextBlockStyle}" />
 
-        <SelectorBar Grid.Row="1" SelectionChanged="Selector_SelectionChanged">
-            <SelectorBarItem Text="History" IsSelected="True" Tag="history" />
-            <SelectorBarItem Text="Watch Later" Tag="later" />
-        </SelectorBar>
-
-        <Grid Grid.Row="2">
-            <GridView x:Name="HistoryGrid"
-                      ItemsSource="{x:Bind ViewModel.History, Mode=OneWay}"
-                      SelectionMode="None" IsItemClickEnabled="True"
-                      ItemClick="Grid_ItemClick">
-                <GridView.ItemTemplate>
-                    <DataTemplate x:DataType="models:Video">
-                        <controls:VideoCard Video="{x:Bind}" Width="280" Margin="0,0,12,12" />
-                    </DataTemplate>
-                </GridView.ItemTemplate>
-                <GridView.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <ItemsWrapGrid Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                </GridView.ItemsPanel>
-            </GridView>
-
-            <GridView x:Name="LaterGrid" Visibility="Collapsed"
-                      ItemsSource="{x:Bind ViewModel.WatchLater, Mode=OneWay}"
-                      SelectionMode="None" IsItemClickEnabled="True"
-                      ItemClick="Grid_ItemClick">
-                <GridView.ItemTemplate>
-                    <DataTemplate x:DataType="models:Video">
-                        <controls:VideoCard Video="{x:Bind}" Width="280" Margin="0,0,12,12" />
-                    </DataTemplate>
-                </GridView.ItemTemplate>
-                <GridView.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <ItemsWrapGrid Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                </GridView.ItemsPanel>
-            </GridView>
-        </Grid>
+        <GridView Grid.Row="2"
+                  ItemsSource="{x:Bind ViewModel.History, Mode=OneWay}"
+                  SelectionMode="None"
+                  IsItemClickEnabled="True"
+                  ItemClick="Grid_ItemClick">
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="models:Video">
+                    <controls:VideoCard Video="{x:Bind}" Width="280" Margin="0,0,12,12" />
+                </DataTemplate>
+            </GridView.ItemTemplate>
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+        </GridView>
     </Grid>
 </Page>

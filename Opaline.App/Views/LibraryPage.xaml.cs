@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using Opaline.App.Services;
@@ -24,19 +23,9 @@ public sealed partial class LibraryPage : Page
         ViewModel.Load();
     }
 
-    private void Selector_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
-    {
-        var tag = (sender.SelectedItem as SelectorBarItem)?.Tag as string;
-        HistoryGrid.Visibility = tag == "later" ? Visibility.Collapsed : Visibility.Visible;
-        LaterGrid.Visibility = tag == "later" ? Visibility.Visible : Visibility.Collapsed;
-    }
-
     private void Grid_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is Video video)
-        {
-            var nav = App.Services.GetRequiredService<INavigationService>();
-            nav.Navigate(typeof(WatchPage), video.Id);
-        }
+            App.Services.GetRequiredService<INavigationService>().Navigate(typeof(WatchPage), video.Id);
     }
 }

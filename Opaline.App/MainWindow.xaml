@@ -7,10 +7,6 @@
     xmlns:views="using:Opaline.App.Views"
     Title="Opaline">
 
-    <Window.SystemBackdrop>
-        <MicaBackdrop />
-    </Window.SystemBackdrop>
-
     <Grid>
         <NavigationView
             x:Name="NavView"

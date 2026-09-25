@@ -1,9 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using Opaline.App.Services;
 using Opaline.App.ViewModels;
+using Opaline.Core.Models;
 
 namespace Opaline.App.Views;
 
@@ -24,18 +24,9 @@ public sealed partial class ShortsPage : Page
             await ViewModel.LoadAsync();
     }
 
-    private async void ShortsFlip_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void Shorts_ItemClick(object sender, ItemClickEventArgs e)
     {
-        if (ShortsFlip.SelectedIndex >= ViewModel.Shorts.Count - 2)
-            await ViewModel.LoadMoreAsync();
-    }
-
-    private void Open_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: string id })
-        {
-            var nav = App.Services.GetRequiredService<INavigationService>();
-            nav.Navigate(typeof(WatchPage), id);
-        }
+        if (e.ClickedItem is Video video)
+            App.Services.GetRequiredService<INavigationService>().Navigate(typeof(WatchPage), video.Id);
     }
 }
