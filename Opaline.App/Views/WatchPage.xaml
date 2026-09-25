@@ -20,11 +20,6 @@
                 Stretch="Uniform"
                 AutomationProperties.AutomationId="WatchPlayer"
                 AutomationProperties.Name="Video player">
-                <MediaPlayerElement.TransportControls>
-                    <MediaTransportControls IsFullWindowButtonVisible="True"
-                                            IsCompact="False"
-                                            IsZoomButtonVisible="False" />
-                </MediaPlayerElement.TransportControls>
             </MediaPlayerElement>
 
             <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
