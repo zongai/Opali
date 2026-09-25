@@ -3,74 +3,23 @@ name: Build Windows
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build (x64 Release)
     runs-on: windows-latest
-    timeout-minutes: 40
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
-
-      - name: Install Windows workload
-        run: dotnet workload install windows --skip-manifest-update
-        continue-on-error: true
-
-      - name: Restore
-        run: dotnet restore Opaline.Windows.sln
-
-      - name: Build Core
-        run: dotnet build Opaline.Core\Opaline.Core.csproj -c Release --no-restore
-
-      - name: Build App
-        id: buildapp
-        continue-on-error: true
-        run: |
-          dotnet build Opaline.App\Opaline.App.csproj -c Release -p:Platform=x64 -p:WindowsPackageType=None --no-restore
-
-      - name: Capture XamlCompiler stderr
-        if: always()
-        shell: pwsh
-        run: |
-          $obj = Get-ChildItem -Recurse Opaline.App\obj -Directory | Where-Object { $_.Name -match 'net8' } | Select-Object -First 1
-          if ($obj) {
-            Write-Host "OBJ = $($obj.FullName)"
-            Get-ChildItem $obj.FullName | Format-Table Name, Length
-            $in = Join-Path $obj.FullName 'input.json'
-            $out = Join-Path $obj.FullName 'output.json'
-            if (Test-Path $in) {
-              $sdk = Get-ChildItem "$env:USERPROFILE\.nuget\packages\microsoft.windowsappsdk" -Directory | Sort-Object Name -Descending | Select-Object -First 1
-              $xamlc = Get-ChildItem -Recurse $sdk.FullName -Filter XamlCompiler.exe | Select-Object -First 1
-              Write-Host "XamlCompiler = $($xamlc.FullName)"
-              if ($xamlc) {
-                & $xamlc.FullName $in $out 2>&1 | Write-Host
-                if (Test-Path $out) {
-                  Write-Host "==== output.json ===="
-                  Get-Content $out -Raw
-                }
-              }
-            }
-          }
-
-      - name: Fail if build failed
-        if: steps.buildapp.outcome == 'failure'
-        run: exit 1
-
-      - name: Publish
-        run: |
-          dotnet publish Opaline.App\Opaline.App.csproj -c Release -r win-x64 -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true --self-contained true -o publish\win-x64
-
+      - run: dotnet restore Opaline.Windows.sln
+      - run: dotnet build Opaline.Core/Opaline.Core.csproj -c Release --no-restore
+      - run: dotnet build Opaline.App/Opaline.App.csproj -c Release -p:Platform=x64 -p:WindowsPackageType=None --no-restore
+      - run: |
+          dotnet publish Opaline.App/Opaline.App.csproj -c Release -r win-x64 -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true --self-contained true -o publish/win-x64
       - uses: actions/upload-artifact@v4
         with:
           name: Opaline-Windows-x64
           path: publish/win-x64
           if-no-files-found: error
-          retention-days: 14
