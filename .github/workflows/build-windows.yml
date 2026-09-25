@@ -29,27 +29,52 @@ jobs:
         run: dotnet build Opaline.Core\Opaline.Core.csproj -c Release --no-restore
 
       - name: Build Opaline.App (WinUI)
-        run: >
-          dotnet build Opaline.App\Opaline.App.csproj
-          -c Release
-          -p:Platform=x64
-          -p:WindowsAppSDKSelfContained=true
-          --no-restore
+        run: |
+          dotnet build Opaline.App\Opaline.App.csproj `
+            -c Release `
+            -p:Platform=x64 `
+            -p:WindowsAppSDKSelfContained=true `
+            -p:WindowsPackageType=None `
+            --no-restore `
+            -v:n
+        continue-on-error: true
+
+      - name: Dump XAML intermediate logs
+        if: always()
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse Opaline.App\obj -Filter *.json -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match 'input|output|xaml' } |
+            ForEach-Object {
+              Write-Host "==== $($_.FullName) ===="
+              Get-Content $_.FullName -ErrorAction SilentlyContinue | Select-Object -First 80
+            }
+          Get-ChildItem -Recurse Opaline.App\obj -Filter *.err -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              Write-Host "==== ERR $($_.FullName) ===="
+              Get-Content $_.FullName
+            }
+          # Search MSBuild binlog alternative: re-run with binary log
+          if (-not (Test-Path "Opaline.App\bin\x64\Release")) {
+            Write-Host "Retry build with binary log..."
+            dotnet build Opaline.App\Opaline.App.csproj `
+              -c Release -p:Platform=x64 `
+              -p:WindowsPackageType=None `
+              -bl:msbuild.binlog `
+              -v:diag 2>&1 | Select-String -Pattern "error|Error|Exception|XamlC|Type not found|does not exist" |
+              Select-Object -First 80
+          }
 
       - name: Publish unpackaged (win-x64)
-        run: >
-          dotnet publish Opaline.App\Opaline.App.csproj
-          -c Release
-          -r win-x64
-          -p:Platform=x64
-          -p:PublishSingleFile=false
-          -p:WindowsAppSDKSelfContained=true
-          -p:WindowsPackageType=None
-          --self-contained true
-          -o publish\win-x64
-
-      - name: List publish output
-        run: Get-ChildItem -Recurse publish\win-x64 | Select-Object -First 40 FullName, Length
+        run: |
+          dotnet publish Opaline.App\Opaline.App.csproj `
+            -c Release `
+            -r win-x64 `
+            -p:Platform=x64 `
+            -p:WindowsAppSDKSelfContained=true `
+            -p:WindowsPackageType=None `
+            --self-contained true `
+            -o publish\win-x64
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
