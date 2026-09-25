@@ -57,6 +57,7 @@ public sealed class CommentThread
     public string Text { get; init; } = string.Empty;
     public long? LikeCount { get; init; }
     public DateTimeOffset? PublishedAt { get; init; }
+    public string? PublishedTime { get; init; }
     public int ReplyCount { get; init; }
     public IReadOnlyList<CommentThread>? Replies { get; init; }
 }
