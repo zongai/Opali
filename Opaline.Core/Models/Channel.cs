@@ -2,8 +2,8 @@ namespace Opaline.Core.Models;
 
 public sealed class Channel
 {
-    public required string Id { get; init; }
-    public required string Title { get; init; }
+    public string Id { get; init; }
+    public string Title { get; init; }
     public string? Description { get; init; }
     public string? AvatarUrl { get; init; }
     public string? BannerUrl { get; init; }

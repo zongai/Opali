@@ -24,12 +24,12 @@ public enum SbSkipBehavior
 
 public sealed class SponsorBlockSegment
 {
-    public required string Uuid { get; init; }
-    public required SbCategory Category { get; init; }
-    public required double StartTime { get; init; }
-    public required double EndTime { get; init; }
+    public string Uuid { get; init; }
+    public SbCategory Category { get; init; }
+    public double StartTime { get; init; }
+    public double EndTime { get; init; }
     /// <summary>skip | poi | chapter | full</summary>
-    public required string ActionType { get; init; }
+    public string ActionType { get; init; }
 }
 
 public static class SbCategoryExtensions

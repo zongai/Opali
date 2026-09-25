@@ -456,11 +456,11 @@ public sealed partial class InnertubeClient
 /// </summary>
 public sealed class ClientIdentity
 {
-    public required string ClientName { get; init; }
-    public required string ClientNameId { get; init; }
-    public required string ClientVersion { get; init; }
-    public required string UserAgent { get; init; }
-    public required string ApiKey { get; init; }
+    public string ClientName { get; init; }
+    public string ClientNameId { get; init; }
+    public string ClientVersion { get; init; }
+    public string UserAgent { get; init; }
+    public string ApiKey { get; init; }
 
     public static ClientIdentity Android { get; } = new()
     {

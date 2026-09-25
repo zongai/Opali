@@ -5,8 +5,8 @@ namespace Opaline.Core.Models;
 /// </summary>
 public sealed class WatchPage
 {
-    public required Video Video { get; init; }
-    public required IReadOnlyList<StreamInfo> Streams { get; init; }
+    public Video Video { get; init; }
+    public IReadOnlyList<StreamInfo> Streams { get; init; }
     public IReadOnlyList<Video>? RelatedVideos { get; init; }
     public string? LikeCount { get; init; }
     public string? DislikeCount { get; init; }
@@ -23,8 +23,8 @@ public sealed class WatchPage
 
 public sealed class StreamInfo
 {
-    public required string Url { get; init; }
-    public required string MimeType { get; init; }
+    public string Url { get; init; }
+    public string MimeType { get; init; }
     public int? Width { get; init; }
     public int? Height { get; init; }
     public int? Fps { get; init; }
@@ -51,10 +51,10 @@ public sealed class StreamInfo
 
 public sealed class CommentThread
 {
-    public required string Id { get; init; }
-    public required string AuthorName { get; init; }
+    public string Id { get; init; }
+    public string AuthorName { get; init; }
     public string? AuthorAvatarUrl { get; init; }
-    public required string Text { get; init; }
+    public string Text { get; init; }
     public long? LikeCount { get; init; }
     public DateTimeOffset? PublishedAt { get; init; }
     public int ReplyCount { get; init; }

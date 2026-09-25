@@ -5,8 +5,8 @@ namespace Opaline.Core.Models;
 /// </summary>
 public sealed class Video
 {
-    public required string Id { get; init; }
-    public required string Title { get; init; }
+    public string Id { get; init; }
+    public string Title { get; init; }
     public string? Description { get; init; }
     public string? ChannelId { get; init; }
     public string? ChannelTitle { get; init; }
