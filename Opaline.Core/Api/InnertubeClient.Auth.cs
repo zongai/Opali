@@ -77,9 +77,14 @@ public sealed partial class InnertubeClient
         }
 
         using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        var node = await JsonNode.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+        var raw = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            var snippet = raw.Length > 400 ? raw[..400] : raw;
+            throw new HttpRequestException(
+                $"InnerTube {endpoint} {(int)response.StatusCode} {response.ReasonPhrase}: {snippet}");
+        }
+        var node = JsonNode.Parse(raw);
         return node ?? throw new InvalidOperationException("Empty InnerTube response");
     }
 }

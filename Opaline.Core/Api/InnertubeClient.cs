@@ -33,7 +33,7 @@ public sealed partial class InnertubeClient
     private void ConfigureHttpClient()
     {
         _http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", _identity.UserAgent);
-        _http.DefaultRequestHeaders.TryAddWithoutValidation("X-YouTube-Client-Name", _identity.ClientName);
+        _http.DefaultRequestHeaders.TryAddWithoutValidation("X-YouTube-Client-Name", _identity.ClientNameId);
         _http.DefaultRequestHeaders.TryAddWithoutValidation("X-YouTube-Client-Version", _identity.ClientVersion);
         _http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
     }
@@ -133,12 +133,16 @@ public sealed partial class InnertubeClient
             {
                 client = new
                 {
-                    clientName = _identity.ClientNameId,
+                    clientName = _identity.ClientName, // "ANDROID" / "WEB" — NOT the numeric header id
                     clientVersion = _identity.ClientVersion,
                     hl = "en",
                     gl = "US",
                     timeZone = "UTC",
-                    utcOffsetMinutes = 0
+                    utcOffsetMinutes = 0,
+                    platform = "MOBILE",
+                    osName = "Android",
+                    osVersion = "14",
+                    androidSdkVersion = 34
                 }
             }
         };
@@ -466,8 +470,8 @@ public sealed class ClientIdentity
     {
         ClientName = "ANDROID",
         ClientNameId = "3",
-        ClientVersion = "19.29.37",
-        UserAgent = "com.google.android.youtube/19.29.37 (Linux; U; Android 14) gzip",
+        ClientVersion = "21.26.364",
+        UserAgent = "com.google.android.youtube/21.26.364 (Linux; U; Android 14) gzip",
         ApiKey = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w"
     };
 
@@ -475,8 +479,8 @@ public sealed class ClientIdentity
     {
         ClientName = "WEB",
         ClientNameId = "1",
-        ClientVersion = "2.20240815.00.00",
-        UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        ClientVersion = "2.20260206.01.00",
+        UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
         ApiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
     };
 }
