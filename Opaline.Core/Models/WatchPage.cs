@@ -1,0 +1,62 @@
+namespace Opaline.Core.Models;
+
+/// <summary>
+/// Full watch page payload: metadata + streams + manifests + related.
+/// </summary>
+public sealed class WatchPage
+{
+    public required Video Video { get; init; }
+    public required IReadOnlyList<StreamInfo> Streams { get; init; }
+    public IReadOnlyList<Video>? RelatedVideos { get; init; }
+    public string? LikeCount { get; init; }
+    public string? DislikeCount { get; init; }
+    public bool IsLiked { get; set; }
+    public bool IsDisliked { get; set; }
+    public string? ContinuationToken { get; init; }
+
+    /// <summary>Server-provided HLS master playlist (preferred for adaptive).</summary>
+    public string? HlsManifestUrl { get; init; }
+
+    /// <summary>Server-provided DASH MPD (fallback adaptive).</summary>
+    public string? DashManifestUrl { get; init; }
+}
+
+public sealed class StreamInfo
+{
+    public required string Url { get; init; }
+    public required string MimeType { get; init; }
+    public int? Width { get; init; }
+    public int? Height { get; init; }
+    public int? Fps { get; init; }
+    public long? Bitrate { get; init; }
+    public string? QualityLabel { get; init; }
+    public bool IsAudioOnly { get; init; }
+    public bool IsVideoOnly { get; init; }
+    public string? Codecs { get; init; }
+    public long? ContentLength { get; init; }
+    public int? Itag { get; init; }
+
+    /// <summary>Encrypted signature challenge from signatureCipher (field <c>s</c>).</summary>
+    public string? SigChallenge { get; init; }
+
+    /// <summary>Query parameter name for the solved signature (usually <c>sig</c>).</summary>
+    public string? SigParam { get; init; }
+
+    /// <summary>Raw n-parameter from the URL, if present (pre-solve).</summary>
+    public string? NParam { get; init; }
+
+    public string DisplayLabel => QualityLabel
+        ?? (Height is { } h ? $"{h}p" : (IsAudioOnly ? "Audio" : "Unknown"));
+}
+
+public sealed class CommentThread
+{
+    public required string Id { get; init; }
+    public required string AuthorName { get; init; }
+    public string? AuthorAvatarUrl { get; init; }
+    public required string Text { get; init; }
+    public long? LikeCount { get; init; }
+    public DateTimeOffset? PublishedAt { get; init; }
+    public int ReplyCount { get; init; }
+    public IReadOnlyList<CommentThread>? Replies { get; init; }
+}

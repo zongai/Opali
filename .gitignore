@@ -1,0 +1,46 @@
+## Build
+bin/
+obj/
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+x64/
+ARM64/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## IDE
+.vs/
+.idea/
+*.swp
+*~
+
+## Windows / local
+*.pfx
+*.cer
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+_pkginfo.txt
+*.appx
+*.msix
+*.msixbundle
+
+## App local data (never commit tokens)
+oauth.json
+history.json
+watch_later.json
+
+## OS
+.DS_Store
+Thumbs.db
