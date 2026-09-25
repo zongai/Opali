@@ -20,8 +20,8 @@
                           Width="48" Height="48"
                           HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-            <InfoBar IsOpen="{x:Bind ViewModel.ErrorMessage, Mode=OneWay, Converter={StaticResource NullToBoolConverter}}"
-                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+            <InfoBar
+Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
                      Severity="Warning" VerticalAlignment="Top" />
 
             <GridView

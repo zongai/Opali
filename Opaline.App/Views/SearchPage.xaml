@@ -13,7 +13,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0"
-                   Text="{x:Bind ViewModel.Query, Mode=OneWay, Converter={StaticResource StringFormatConverter}, ConverterParameter='Results for “{0}”'}"
+                   Text="{x:Bind ViewModel.Query, Mode=OneWay}"
                    Style="{StaticResource TitleLargeTextBlockStyle}" />
 
         <Grid Grid.Row="1">
@@ -21,8 +21,8 @@
                           Width="48" Height="48"
                           HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-            <InfoBar IsOpen="{x:Bind ViewModel.ErrorMessage, Mode=OneWay, Converter={StaticResource NullToBoolConverter}}"
-                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+            <InfoBar
+Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
                      Severity="Error" VerticalAlignment="Top" />
 
             <GridView

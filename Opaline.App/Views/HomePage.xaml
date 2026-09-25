@@ -22,11 +22,10 @@
         <Grid Grid.Row="1">
             <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
                           Width="48" Height="48"
-                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                          Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
+                          HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-            <InfoBar IsOpen="{x:Bind ViewModel.ErrorMessage, Mode=OneWay, Converter={StaticResource NullToBoolConverter}}"
-                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+            <InfoBar
+Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
                      Severity="Error" IsClosable="True"
                      VerticalAlignment="Top" />
 
@@ -35,8 +34,7 @@
                 ItemsSource="{x:Bind ViewModel.Videos, Mode=OneWay}"
                 SelectionMode="None"
                 IsItemClickEnabled="True"
-                ItemClick="VideoGrid_ItemClick"
-                Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                ItemClick="VideoGrid_ItemClick">
                 <GridView.ItemTemplate>
                     <DataTemplate x:DataType="models:Video">
                         <controls:VideoCard Video="{x:Bind}" Width="320" Margin="0,0,16,16" />

@@ -53,8 +53,7 @@
         </StackPanel>
 
         <InfoBar Grid.Row="2"
-                 IsOpen="{x:Bind ViewModel.ErrorMessage, Mode=OneWay, Converter={StaticResource NullToBoolConverter}}"
-                 Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
                  Severity="Error" Margin="24,0" />
     </Grid>
 </Page>
