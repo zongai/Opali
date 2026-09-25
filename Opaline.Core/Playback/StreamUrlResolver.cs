@@ -72,7 +72,7 @@ public sealed class StreamUrlResolver
                     progressive.Url, page.Video.Id,
                     progressive.SigChallenge, progressive.SigParam, ct).ConfigureAwait(false);
                 if (!string.IsNullOrEmpty(url))
-                    return new ResolvedStream(url!, progressive, null, isProgressive: true, StreamKind.Progressive);
+                    return new ResolvedStream(url!, progressive, null, IsProgressive: true, StreamKind.Progressive);
             }
         }
 
@@ -120,7 +120,7 @@ public sealed class StreamUrlResolver
                 Codecs = video.Codecs
             },
             audioInfo,
-            isProgressive: false,
+            IsProgressive: false,
             audioInfo is null ? StreamKind.VideoOnly : StreamKind.AdaptivePair);
     }
 
@@ -194,7 +194,7 @@ public sealed class StreamUrlResolver
     public static StreamInfo? SelectBestProgressive(WatchPage page, int maxHeight = 1080)
         => page.Streams
             .Where(s => !s.IsAudioOnly && !s.IsVideoOnly && !string.IsNullOrEmpty(s.Url))
-            .Where(s => s.Height is null or <= maxHeight)
+            .Where(s => s.Height is null || s.Height <= maxHeight)
             .OrderByDescending(s => s.Height ?? 0)
             .ThenByDescending(s => s.Bitrate ?? 0)
             .FirstOrDefault();
@@ -204,7 +204,7 @@ public sealed class StreamUrlResolver
     {
         var video = page.Streams
             .Where(s => s.IsVideoOnly && !string.IsNullOrEmpty(s.Url))
-            .Where(s => s.Height is null or <= maxHeight)
+            .Where(s => s.Height is null || s.Height <= maxHeight)
             .OrderByDescending(s => s.Height ?? 0)
             .ThenByDescending(s => s.Bitrate ?? 0)
             .FirstOrDefault();
