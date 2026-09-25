@@ -24,7 +24,7 @@ jobs:
       - name: Build Core
         run: dotnet build Opaline.Core/Opaline.Core.csproj -c Release --no-restore
 
-      - name: Build App
+      - name: Build App (self-contained)
         run: |
           msbuild Opaline.App\Opaline.App.csproj `
             /p:Configuration=Release `
@@ -32,6 +32,7 @@ jobs:
             /p:RuntimeIdentifier=win-x64 `
             /p:WindowsPackageType=None `
             /p:WindowsAppSDKSelfContained=true `
+            /p:WindowsAppSdkBootstrapInitialize=false `
             /p:SelfContained=true `
             /p:EnableMsixTooling=true `
             /p:GenerateAppxPackageOnBuild=false `
@@ -46,37 +47,49 @@ jobs:
             -p:Platform=x64 `
             -p:WindowsPackageType=None `
             -p:WindowsAppSDKSelfContained=true `
-            -p:EnableMsixTooling=true `
+            -p:WindowsAppSdkBootstrapInitialize=false `
             -p:WindowsAppSdkUndockedRegFreeWinRTInitialize=true `
+            -p:EnableMsixTooling=true `
             -p:PublishTrimmed=false `
             -p:PublishSingleFile=false `
-            -p:PublishReadyToRun=false `
             -p:GenerateAppxPackageOnBuild=false `
-            -o publish/win-x64
+            -o publish/win-x64-sc
 
-      - name: Verify runtime payload
+      - name: Verify self-contained payload
         shell: pwsh
         run: |
-          $dir = "publish/win-x64"
-          $needles = @(
-            "Opaline.App.exe",
-            "Microsoft.WindowsAppRuntime.Bootstrap.dll",
-            "Microsoft.WindowsAppRuntime.dll",
-            "Microsoft.WinUI.dll",
-            "Microsoft.WindowsAppRuntime.Bootstrap.Net.dll"
-          )
-          foreach ($n in $needles) {
-            $f = Join-Path $dir $n
-            if (Test-Path $f) { Write-Host "OK  $n  $((Get-Item $f).Length)" }
-            else { Write-Host "MISSING  $n"; exit 1 }
+          $dir = "publish/win-x64-sc"
+          foreach ($n in @("Opaline.App.exe","Microsoft.WindowsAppRuntime.dll","Microsoft.WinUI.dll","run-opaline.cmd")) {
+            if (-not (Test-Path (Join-Path $dir $n))) { throw "MISSING $n" }
+            Write-Host "OK $n"
           }
-          # App.pri / resources often required
-          Get-ChildItem $dir -Filter "*.pri" | ForEach-Object { Write-Host "PRI $($_.Name) $($_.Length)" }
-          Write-Host "File count:" (Get-ChildItem $dir -File).Count
+
+      - name: Publish framework-dependent (needs Windows App Runtime 2.5 installed)
+        run: |
+          dotnet publish Opaline.App/Opaline.App.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -p:Platform=x64 `
+            -p:WindowsPackageType=None `
+            -p:WindowsAppSDKSelfContained=false `
+            -p:WindowsAppSdkBootstrapInitialize=true `
+            -p:EnableMsixTooling=true `
+            -p:PublishTrimmed=false `
+            -p:PublishSingleFile=false `
+            -p:GenerateAppxPackageOnBuild=false `
+            -o publish/win-x64-fd
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Opaline-Windows-x64
-          path: publish/win-x64
+          name: Opaline-Windows-x64-SelfContained
+          path: publish/win-x64-sc
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Opaline-Windows-x64-FrameworkDependent
+          path: publish/win-x64-fd
           if-no-files-found: error
           retention-days: 14
