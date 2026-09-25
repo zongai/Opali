@@ -37,7 +37,7 @@ jobs:
             /p:GenerateAppxPackageOnBuild=false `
             /restore
 
-      - name: Publish self-contained win-x64
+      - name: Publish self-contained win-x64 (WASDK 2.5)
         run: |
           dotnet publish Opaline.App/Opaline.App.csproj `
             -c Release `
@@ -54,26 +54,32 @@ jobs:
             -p:PublishReadyToRun=false `
             -o publish/win-x64
 
-      - name: Verify Windows App Runtime is embedded
+      - name: Verify embedded Windows App Runtime 2.x
         shell: pwsh
         run: |
           $dir = "publish/win-x64"
-          Write-Host "=== Publish output (key files) ==="
-          Get-ChildItem $dir -File | Sort-Object Length -Descending | Select-Object -First 40 Name, Length
-          Write-Host ""
+          Write-Host "=== Key files ==="
           $needles = @(
+            "Opaline.App.exe",
             "Microsoft.WindowsAppRuntime.Bootstrap.dll",
             "Microsoft.WindowsAppRuntime.dll",
-            "Microsoft.WinUI.dll",
-            "Opaline.App.exe"
+            "Microsoft.WinUI.dll"
           )
+          $missing = $false
           foreach ($n in $needles) {
             $f = Join-Path $dir $n
             if (Test-Path $f) { Write-Host "OK  $n  $((Get-Item $f).Length) bytes" }
-            else { Write-Host "MISSING  $n" }
+            else { Write-Host "MISSING  $n"; $missing = $true }
           }
-          # Any WASDK runtime payload
-          Get-ChildItem $dir -Recurse -Filter "*WindowsAppRuntime*" | ForEach-Object { Write-Host $_.FullName.Replace((Resolve-Path $dir).Path + '\', '') }
+          Write-Host ""
+          Write-Host "=== WindowsAppRuntime* ==="
+          Get-ChildItem $dir -Recurse -Filter "*WindowsAppRuntime*" | ForEach-Object {
+            Write-Host ("{0,-70} {1,12}" -f $_.Name, $_.Length)
+          }
+          # Ensure we are not shipping a 1.6-only bootstrap that asks for system runtime
+          $bootstrap = Join-Path $dir "Microsoft.WindowsAppRuntime.Bootstrap.dll"
+          if (-not (Test-Path $bootstrap)) { throw "Bootstrap DLL missing — self-contained failed" }
+          if ($missing) { throw "Required runtime files missing from publish output" }
 
       - uses: actions/upload-artifact@v4
         with:
