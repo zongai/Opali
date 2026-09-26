@@ -49,3 +49,7 @@
 - Download saves `{id}.watch.json` (OfflineWatchSnapshot) beside media
 - Network fail → TryLoadOffline: snapshot metadata + local file stream
 - Related rail offline = other on-device downloads (iOS offlineShaped)
+## AV1 hardware probe
+- App Av1HardwareProbe uses WinRT CodecQuery (AV01 subtypes)
+- Av1Support.ReportHardwareProbe gates ladder (iOS VT parity)
+

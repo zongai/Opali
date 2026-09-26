@@ -50,6 +50,10 @@
             <ToggleSwitch Header="Prefer AV1 (when available)"
                           IsOn="{x:Bind ViewModel.PreferAv1, Mode=TwoWay}"
                           AutomationProperties.AutomationId="SettingsPreferAv1" />
+            <TextBlock Text="{x:Bind ViewModel.Av1ProbeDetail, Mode=OneWay}"
+                       Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.75"
+                       TextWrapping="WrapWholeWords"
+                       AutomationProperties.AutomationId="SettingsAv1Probe" />
             <ToggleSwitch Header="Auto-dub (prefer language audio)"
                           IsOn="{x:Bind ViewModel.AutoDubEnabled, Mode=TwoWay}"
                           AutomationProperties.AutomationId="SettingsAutoDub" />

@@ -108,6 +108,8 @@ public partial class App : Application
         {
             _window = new MainWindow();
             _window.Activate();
+            _ = Av1HardwareProbe.ProbeAsync();
+
 
             // WebView2 BotGuard local pot (async; failure → remote /get_pot)
             try

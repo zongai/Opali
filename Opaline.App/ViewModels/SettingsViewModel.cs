@@ -20,6 +20,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string solverBaseUrl = "";
     [ObservableProperty] private string botGuardStatus = "未初始化";
     [ObservableProperty] private bool preferAv1 = true;
+    [ObservableProperty] private string av1ProbeDetail = "探测中…";
     [ObservableProperty] private bool autoDubEnabled = true;
     [ObservableProperty] private bool ignoreAiDubs = true;
     [ObservableProperty] private string autoDubLanguage = "";
@@ -43,6 +44,8 @@ public partial class SettingsViewModel : ObservableObject
         RydEnabled = ryd.Enabled;
         SolverBaseUrl = AppUrls.SolverServer.BaseUrl;
         PreferAv1 = Av1Support.IsPreferred;
+        Av1ProbeDetail = Av1Support.ProbeDetail;
+        _ = RefreshAv1ProbeAsync();
         AutoDubEnabled = AutoDubPreference.IsEnabled;
         IgnoreAiDubs = AutoDubPreference.IgnoreAiDubs;
         AutoDubLanguage = AutoDubPreference.LanguageOverride ?? "";
