@@ -212,3 +212,16 @@ class VideosViewController: UIViewController, ScrollableToTop {
         collectionView?.backgroundColor = theme.background
     }
 }
+
+// MARK: - Incomplete helpers used by channel/search subclasses
+extension VideosViewController {
+    func endRefreshing() {
+        // refreshControl may not be present on all subclasses
+        (collectionView?.refreshControl)?.endRefreshing()
+    }
+
+    func setPage(_ page: FeedPage) {
+        // Minimal: replace video list if subclass exposes sections
+        AppLog.log("Videos", "setPage stub count=\(page.videos.count)")
+    }
+}
