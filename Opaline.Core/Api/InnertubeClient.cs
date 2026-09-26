@@ -433,6 +433,43 @@ public sealed partial class InnertubeClient
         }
     }
 
+    private static Video? ParseTileRenderer(JsonNode tile)
+    {
+        var id = tile["onSelectCommand"]?["watchEndpoint"]?["videoId"]?.GetValue<string>()
+              ?? tile["onSelectCommand"]?["reelWatchEndpoint"]?["videoId"]?.GetValue<string>()
+              ?? tile["contentId"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(id) || id.Length is not 11)
+            return null;
+
+        var meta = tile["metadata"]?["tileMetadataRenderer"];
+        var title = meta?["title"]?["simpleText"]?.GetValue<string>()
+                 ?? meta?["title"]?["runs"]?.AsArray()?.FirstOrDefault()?["text"]?.GetValue<string>()
+                 ?? "Video";
+        string? channel = null;
+        if (meta?["lines"] is JsonArray lines)
+        {
+            foreach (var line in lines)
+            {
+                var text = line?["lineRenderer"]?["items"]?.AsArray()?.FirstOrDefault()
+                    ?["lineItemRenderer"]?["text"]?["simpleText"]?.GetValue<string>()
+                    ?? line?["lineRenderer"]?["items"]?.AsArray()?.FirstOrDefault()
+                    ?["lineItemRenderer"]?["text"]?["runs"]?.AsArray()?.FirstOrDefault()?["text"]?.GetValue<string>();
+                if (!string.IsNullOrEmpty(text) && channel is null)
+                    channel = text;
+            }
+        }
+        var thumb = tile["header"]?["tileHeaderRenderer"]?["thumbnail"]?["thumbnails"]?.AsArray()?.LastOrDefault()?["url"]?.GetValue<string>()
+                 ?? tile["thumbnail"]?["thumbnails"]?.AsArray()?.LastOrDefault()?["url"]?.GetValue<string>();
+        return new Video
+        {
+            Id = id,
+            Title = title,
+            ChannelTitle = channel,
+            ThumbnailUrl = thumb,
+            IsLive = tile["onSelectCommand"]?["watchEndpoint"]?["ustreamerConfig"] is not null
+        };
+    }
+
     private static Video? ParseLockupViewModel(JsonNode lockup)
     {
         var contentType = lockup["contentType"]?.GetValue<string>() ?? "";
