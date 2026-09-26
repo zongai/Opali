@@ -160,9 +160,14 @@ public sealed class StreamUrlResolver
             }
 
             // pot is optional but helps some clients
-            var pot = await _poToken.FetchAsync(videoId, "WEB", ct).ConfigureAwait(false);
-            if (!string.IsNullOrEmpty(pot) && !query.ContainsKey("pot"))
-                query["pot"] = pot!;
+            // pot binds to client name (iOS); try WEB then ANDROID remote mint
+            if (!query.ContainsKey("pot"))
+            {
+                var pot = await _poToken.FetchAsync(videoId, "WEB", ct).ConfigureAwait(false)
+                       ?? await _poToken.FetchAsync(videoId, "ANDROID", ct).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(pot))
+                    query["pot"] = pot!;
+            }
 
             var q = string.Join("&", query.Select(kv =>
                 $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));

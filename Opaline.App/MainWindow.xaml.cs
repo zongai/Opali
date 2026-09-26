@@ -18,6 +18,7 @@ public sealed partial class MainWindow : Window
     public ShellViewModel ViewModel { get; }
 
     private readonly INavigationService _nav;
+    private readonly PlaybackQueue _queue;
     private bool _navReady;
 
     public MainWindow()
@@ -26,6 +27,12 @@ public sealed partial class MainWindow : Window
         {
             ViewModel = App.Services.GetRequiredService<ShellViewModel>();
             _nav = App.Services.GetRequiredService<INavigationService>();
+            _queue = App.Services.GetRequiredService<PlaybackQueue>();
+            _queue.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName is nameof(PlaybackQueue.IsMiniPlayerVisible) or nameof(PlaybackQueue.NowPlaying))
+                    DispatcherQueue.TryEnqueue(UpdateMiniPlayer);
+            };
 
             InitializeComponent();
 
@@ -158,4 +165,32 @@ public sealed partial class MainWindow : Window
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hWnd);
+
+    private void UpdateMiniPlayer()
+    {
+        try
+        {
+            MiniPlayerBar.Visibility = _queue.IsMiniPlayerVisible
+                ? Microsoft.UI.Xaml.Visibility.Visible
+                : Microsoft.UI.Xaml.Visibility.Collapsed;
+            MiniTitle.Text = _queue.NowPlaying?.Title ?? "";
+        }
+        catch (Exception ex) { CrashLog.Write("UpdateMiniPlayer", ex); }
+    }
+
+    private void MiniOpen_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_queue.NowPlaying is { } v)
+            _nav.Navigate(typeof(WatchPage), v.Id);
+    }
+
+    private void MiniNext_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        var next = _queue.PlayNext();
+        if (next is not null)
+            _nav.Navigate(typeof(WatchPage), next.Id);
+    }
+
+    private void MiniClose_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        => _queue.Clear();
 }

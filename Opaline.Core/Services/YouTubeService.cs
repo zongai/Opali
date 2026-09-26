@@ -56,4 +56,16 @@ public sealed class YouTubeService : IYouTubeService
 
     public Task<string?> FetchCaptionAsync(string baseUrl, CancellationToken ct = default)
         => _client.FetchCaptionXmlAsync(baseUrl, ct);
+
+    public Task<ChannelPage> GetChannelTabAsync(string channelId, string paramsToken, string? continuation = null, CancellationToken ct = default)
+        => _client.GetChannelTabAsync(channelId, paramsToken, continuation, ct);
+
+    public Task<bool> AddVideoToPlaylistAsync(string playlistId, string videoId, CancellationToken ct = default)
+        => _client.AddVideoToPlaylistAsync(playlistId, videoId, ct);
+
+    public Task<bool> RemoveVideoFromPlaylistAsync(string playlistId, string videoId, CancellationToken ct = default)
+        => _client.RemoveVideoFromPlaylistAsync(playlistId, videoId, ct);
+
+    public Task<IReadOnlyList<CaptionTrack>> FetchCaptionTracksIosAsync(string videoId, CancellationToken ct = default)
+        => _client.FetchCaptionTracksIosAsync(videoId, ct);
 }

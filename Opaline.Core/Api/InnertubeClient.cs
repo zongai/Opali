@@ -60,6 +60,15 @@ public sealed partial class InnertubeClient
         feed = FilterLongForm(feed);
         System.Diagnostics.Debug.WriteLine(
             $"[Home] browse/TVHTML5 auth={signedIn} items={feed.Items.Count} in {sw.ElapsedMilliseconds}ms");
+        if (feed.Items.Count == 0 && continuation is null)
+        {
+            // Secondary: ANDROID browse (iOS also falls back across clients when empty)
+            var andBody = BuildContext(new { browseId = "FEwhat_to_watch" }, ClientIdentity.Android);
+            var andJson = await PostAsync("browse", andBody, ClientIdentity.Android, sendAuth: false, ct).ConfigureAwait(false);
+            CaptureVisitorData(andJson);
+            feed = FilterLongForm(ParseHomeFeed(andJson));
+            System.Diagnostics.Debug.WriteLine($"[Home] browse/ANDROID items={feed.Items.Count}");
+        }
         if (feed.Items.Count > 0 || continuation is not null)
             return feed;
 
@@ -387,6 +396,14 @@ public sealed partial class InnertubeClient
                     if (v is not null)
                         items.Add(new VideoFeedItem { Id = v.Id, Video = v });
                 }
+            }
+
+            // TV tileRenderer (iOS TileHelpers.parseTile)
+            if (obj.TryGetPropertyValue("tileRenderer", out var tile) && tile is not null)
+            {
+                var v = ParseTileRenderer(tile);
+                if (v is not null)
+                    items.Add(new VideoFeedItem { Id = v.Id, Video = v });
             }
 
             // Modern lockup (WEB channel / some shelves)
@@ -735,5 +752,15 @@ public sealed class ClientIdentity
         ClientVersion = "7.20260311.12.00",
         UserAgent = "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version",
         ApiKey = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w"
+    };
+
+    /// <summary>iOS client — caption timedtext URLs without PO token (iOS Captions.swift).</summary>
+    public static ClientIdentity Ios { get; } = new()
+    {
+        ClientName = "IOS",
+        ClientNameId = "5",
+        ClientVersion = "20.10.4",
+        UserAgent = "com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X)",
+        ApiKey = "AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc"
     };
 }

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using Opaline.App.ViewModels;
@@ -21,6 +22,12 @@ public sealed partial class ChannelPage : Page
         base.OnNavigatedTo(e);
         if (e.Parameter is string id)
             await ViewModel.LoadAsync(id);
+    }
+
+    private async void Tab_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && int.TryParse(b.Tag?.ToString(), out var idx))
+            await ViewModel.LoadTabAsync(idx);
     }
 
     private void Grid_ItemClick(object sender, ItemClickEventArgs e)

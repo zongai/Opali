@@ -335,4 +335,97 @@ public sealed partial class InnertubeClient
             return null;
         }
     }
+
+
+    // ── Channel tabs (iOS ChannelTabParams) ───────────────────────────────
+
+    public static class ChannelTabParams
+    {
+        public const string Videos = "EgZ2aWRlb3PyBgQKAjoA";
+        public const string Shorts = "EgZzaG9ydHPyBgUKA5oBAA==";
+        public const string Live = "EgZzdm9ybHPyBgQKAjoA"; // may vary
+        public const string Playlists = "EglwbGF5bGlzdHPyBgQKAkIA";
+    }
+
+    public async Task<ChannelPage> GetChannelTabAsync(
+        string channelId, string paramsToken, string? continuation = null, CancellationToken ct = default)
+    {
+        object body;
+        if (continuation is null)
+        {
+            body = new Dictionary<string, object?>
+            {
+                ["context"] = new
+                {
+                    client = new
+                    {
+                        clientName = "WEB",
+                        clientVersion = ClientIdentity.Web.ClientVersion,
+                        hl = "en",
+                        gl = "US"
+                    }
+                },
+                ["browseId"] = channelId,
+                ["params"] = paramsToken
+            };
+        }
+        else
+            body = BuildContext(new { continuation }, ClientIdentity.Web);
+
+        var json = await PostAsync("browse", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
+        return ParseChannelPage(json, channelId);
+    }
+
+    // ── Playlist edit (iOS executeEditPlaylist) ───────────────────────────
+
+    public async Task<bool> EditPlaylistAsync(
+        string playlistId,
+        IReadOnlyList<PlaylistEditAction> actions,
+        CancellationToken ct = default)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["context"] = new
+            {
+                client = new
+                {
+                    clientName = "TVHTML5",
+                    clientVersion = ClientIdentity.Tv.ClientVersion,
+                    hl = "en",
+                    gl = "US",
+                    platform = "TV"
+                }
+            },
+            ["playlistId"] = playlistId,
+            ["actions"] = actions.Select(a => a.ToDictionary()).ToArray()
+        };
+        var json = await PostAsync("browse/edit_playlist", body, ClientIdentity.Tv, sendAuth: true, ct).ConfigureAwait(false);
+        var status = json["status"]?.GetValue<string>();
+        return status == "STATUS_SUCCEEDED";
+    }
+
+    public Task<bool> AddVideoToPlaylistAsync(string playlistId, string videoId, CancellationToken ct = default)
+        => EditPlaylistAsync(playlistId, new[]
+        {
+            new PlaylistEditAction { Action = "ACTION_ADD_VIDEO", AddedVideoId = videoId }
+        }, ct);
+
+    public Task<bool> RemoveVideoFromPlaylistAsync(string playlistId, string videoId, CancellationToken ct = default)
+        => EditPlaylistAsync(playlistId, new[]
+        {
+            new PlaylistEditAction { Action = "ACTION_REMOVE_VIDEO_BY_VIDEO_ID", RemovedVideoId = videoId }
+        }, ct);
+
+    /// <summary>Fetch caption tracks via IOS player (timedtext without pot).</summary>
+    public async Task<IReadOnlyList<CaptionTrack>> FetchCaptionTracksIosAsync(string videoId, CancellationToken ct = default)
+    {
+        var body = BuildContext(new
+        {
+            videoId,
+            contentCheckOk = true,
+            racyCheckOk = true
+        }, ClientIdentity.Ios);
+        var json = await PostAsync("player", body, ClientIdentity.Ios, sendAuth: false, ct).ConfigureAwait(false);
+        return ParseCaptionTracks(json);
+    }
 }

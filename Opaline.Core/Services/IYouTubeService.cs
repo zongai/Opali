@@ -20,4 +20,9 @@ public interface IYouTubeService
     Task SubscribeAsync(string channelId, CancellationToken ct = default);
     Task UnsubscribeAsync(string channelId, CancellationToken ct = default);
     Task<string?> FetchCaptionAsync(string baseUrl, CancellationToken ct = default);
+
+    Task<ChannelPage> GetChannelTabAsync(string channelId, string paramsToken, string? continuation = null, CancellationToken ct = default);
+    Task<bool> AddVideoToPlaylistAsync(string playlistId, string videoId, CancellationToken ct = default);
+    Task<bool> RemoveVideoFromPlaylistAsync(string playlistId, string videoId, CancellationToken ct = default);
+    Task<IReadOnlyList<CaptionTrack>> FetchCaptionTracksIosAsync(string videoId, CancellationToken ct = default);
 }

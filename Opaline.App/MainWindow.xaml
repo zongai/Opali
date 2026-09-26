@@ -6,7 +6,11 @@
     Title="Opaline">
 
     <Grid>
-        <NavigationView
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <NavigationView Grid.Row="0"
             x:Name="NavView"
             PaneDisplayMode="Left"
             OpenPaneLength="200"
@@ -63,5 +67,23 @@
             <Frame x:Name="ContentFrame"
                    AutomationProperties.AutomationId="ContentFrame" />
         </NavigationView>
+        <Border x:Name="MiniPlayerBar" Grid.Row="1" Padding="12,8"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0"
+                Visibility="Collapsed">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="MiniTitle" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <Button Grid.Column="1" Content="Open" Click="MiniOpen_Click" Padding="12,4" />
+                <Button Grid.Column="2" Content="Next" Click="MiniNext_Click" Padding="12,4" />
+                <Button Grid.Column="3" Content="×" Click="MiniClose_Click" Padding="12,4" />
+            </Grid>
+        </Border>
     </Grid>
 </Window>

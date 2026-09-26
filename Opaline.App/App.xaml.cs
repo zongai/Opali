@@ -86,6 +86,7 @@ public partial class App : Application
         sc.AddSingleton<IDownloadService, DownloadService>();
         sc.AddSingleton<TranslationService>();
         sc.AddSingleton<WatchHistoryStore>();
+        sc.AddSingleton<PlaybackQueue>();
         sc.AddSingleton<INavigationService, NavigationService>();
         sc.AddSingleton<IThemeService, ThemeService>();
         sc.AddTransient<ShellViewModel>();

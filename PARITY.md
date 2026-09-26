@@ -1,24 +1,24 @@
 # Opaline iOS ↔ Windows parity (2026-09-26)
 
-Source of truth: `/tmp/opaline-ios-src/Opaline-main` (from `Opaline-main.zip`).
+## Implemented / extended this pass
 
-## Aligned in this pass
+| Area | Status |
+|------|--------|
+| Home true feed | TV → ANDROID → search fallback; tileRenderer parse (TV shelves) |
+| Shorts | /reel/reel_watch_sequence |
+| Comments | protobuf continuation |
+| Captions | player tracks + IOS client fallback (no pot timedtext) |
+| Downloads | progressive file download to LocalAppData |
+| Channel Tabs | Videos / Shorts / Live / Playlists via ChannelTabParams |
+| Playlist edit | browse/edit_playlist add/remove video |
+| Mini player + queue | bottom bar + PlaybackQueue |
+| PO Token | remote /get_pot on stream URLs (WEB then ANDROID) |
+| SABR | stub only (SabrDelivery.IsSupported=false) — needs local UMP proxy |
+| BotGuard PO mint | not local; remote provider only |
 
-| Area | iOS | Windows |
-|------|-----|---------|
-| Home browse | TVHTML5 always (`executeBrowse` / `executeBrowseAnonymous`) | **TVHTML5** always; auth when signed in |
-| Home empty shell | — | parallel search fallback, Shorts filtered |
-| Shorts | `/reel/reel_watch_sequence` + `ShortsSeed` | same endpoint + cold/videoId seed |
-| Comments | protobuf continuation + `/next` | `BuildCommentsContinuation` port + `/next` |
-| Subscriptions | TV + bearer | TV + bearer |
-| visitorData | session cache from responseContext | `VisitorData` captured on responses |
-| Player | Android / multi-client | ANDROID progressive + HLS/DASH DualStream |
-| SponsorBlock / RYD | ✓ | ✓ |
-| OAuth device | ✓ | ✓ |
+## Still hard / not full
 
-## Still partial / not ported
-
-- SABR delivery, full lockup entity feeds for home
-- Captions, downloads, mini-player queue
-- Server playlist edit depth, channel tabs parity
-- PO Token BotGuard minting (stub/remote only)
+- Personalized home without Element protocol / account history tiles
+- Full SABR + LocalMediaServer
+- On-device BotGuard (requires WebView JS challenge stack)
+- Full playlist UI (add-to-playlist picker)

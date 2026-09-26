@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -20,6 +21,7 @@ public partial class WatchViewModel : ObservableObject
     private readonly ReturnYouTubeDislikeService _ryd;
     private readonly WatchHistoryStore _history;
     private readonly IDownloadService _downloads;
+    private readonly PlaybackQueue _queue;
     private readonly TranslationService _translator;
 
     public WatchViewModel(
@@ -29,7 +31,8 @@ public partial class WatchViewModel : ObservableObject
         ReturnYouTubeDislikeService ryd,
         WatchHistoryStore history,
         IDownloadService downloads,
-        TranslationService translator)
+        TranslationService translator,
+        PlaybackQueue queue)
     {
         _yt = yt;
         _playback = playback;
@@ -38,6 +41,7 @@ public partial class WatchViewModel : ObservableObject
         _history = history;
         _downloads = downloads;
         _translator = translator;
+        _queue = queue;
     }
 
     [ObservableProperty] private Video? video;
@@ -107,9 +111,20 @@ public partial class WatchViewModel : ObservableObject
                 ? (vc >= 1_000_000 ? $"{vc / 1_000_000.0:0.#}M views" : vc >= 1_000 ? $"{vc / 1_000.0:0.#}K views" : $"{vc} views")
                 : "";
             _history.AddToHistory(Video);
+            _queue.PlayNow(Video);
 
             foreach (var c in _page.CaptionTracks)
                 Captions.Add(c);
+            if (Captions.Count == 0)
+            {
+                try
+                {
+                    var iosCaps = await _yt.FetchCaptionTracksIosAsync(videoId);
+                    foreach (var c in iosCaps)
+                        Captions.Add(c);
+                }
+                catch { /* ignore */ }
+            }
             foreach (var q in _page.VideoQualities)
                 Qualities.Add(q);
             if (Qualities.Count > 0)
