@@ -49,7 +49,7 @@ extension SettingsViewController {
                 : String(format: "%.2gx", step)
             let action = UIAlertAction(title: title, style: .default) { [weak self] _ in
                 PlaybackSpeedPreference.defaultSpeed = step
-                self?.tableView.reloadData()
+                self?.reloadAllSettings()
             }
             if abs(step - PlaybackSpeedPreference.defaultSpeed) < 0.01 {
                 action.setValue(true, forKey: "checked")
@@ -77,7 +77,7 @@ extension SettingsViewController {
             }
             let action = UIAlertAction(title: title, style: .default) { [weak self] _ in
                 TranslationPreferences.targetLanguageOverride = opt.code
-                self?.tableView.reloadData()
+                self?.reloadAllSettings()
             }
             let isSelected: Bool
             if let code = opt.code {
@@ -108,7 +108,7 @@ extension SettingsViewController {
                 style: .default
             ) { [weak self] _ in
                 TranslationPreferences.preferredEngine = engine
-                self?.tableView.reloadData()
+                self?.reloadAllSettings()
             }
             if engine == TranslationPreferences.preferredEngine {
                 action.setValue(true, forKey: "checked")

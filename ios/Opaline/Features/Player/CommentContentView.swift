@@ -67,7 +67,8 @@ final class CommentContentView: UIView {
         likeIcon.tintColor = theme.secondaryText
         likeLabel.textColor = theme.secondaryText
         if let translatedText, !translatedText.isEmpty {
-            let base = NSMutableAttributedString(attributedString: CommentBodyCache.body(for: comment))
+            let body = CommentBodyCache.body(for: comment)
+            let base = NSMutableAttributedString(attributedString: body)
             base.append(NSAttributedString(string: "\n\n"))
             base.append(NSAttributedString(
                 string: translatedText,
