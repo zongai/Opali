@@ -11,94 +11,170 @@ public sealed partial class InnertubeClient
 
     public void AttachAuth(OAuthClient oauth) => _oauth = oauth;
 
-    /// <summary>Shorts-oriented home extraction (duration ≤ 60s or IsShort).</summary>
+    /// <summary>
+    /// Shorts feed via /reel/reel_watch_sequence (iOS ShortsSeed + parseShortsSequence).
+    /// <paramref name="continuation"/> is either a server continuation token or a seed videoId (11 chars).
+    /// </summary>
     public async Task<HomeFeed> GetShortsFeedAsync(string? continuation = null, CancellationToken ct = default)
     {
-        var body = continuation is null
-            ? BuildContext(new { browseId = "FEwhat_to_watch" }, ClientIdentity.Web)
-            : BuildContext(new { continuation }, ClientIdentity.Web);
+        // iOS ShortsSeed.cold = base64([0x10, 0x01]); from video = field1 length-delimited videoId
+        string sequenceParams;
+        if (string.IsNullOrEmpty(continuation))
+            sequenceParams = Convert.ToBase64String(new byte[] { 0x10, 0x01 });
+        else if (continuation.Length == 11 && continuation.All(c => char.IsLetterOrDigit(c) || c is '_' or '-'))
+        {
+            var idBytes = System.Text.Encoding.UTF8.GetBytes(continuation);
+            var buf = new byte[2 + idBytes.Length];
+            buf[0] = 0x0A;
+            buf[1] = (byte)idBytes.Length;
+            Buffer.BlockCopy(idBytes, 0, buf, 2, idBytes.Length);
+            sequenceParams = Convert.ToBase64String(buf);
+        }
+        else
+            sequenceParams = continuation; // raw continuation token from prior page
 
-        var json = await PostAsync("browse", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
-        var feed = ParseHomeFeed(json);
+        var signedIn = _oauth is not null && _oauth.IsSignedIn;
+        var id = signedIn ? ClientIdentity.Tv : ClientIdentity.Web;
+        var body = BuildContext(new { sequenceParams }, id);
+        // BuildContext only merges endpoint props; sequenceParams is on the anonymous object
 
-        var shorts = feed.Items
-            .OfType<VideoFeedItem>()
-            .Select(v =>
+        var json = await PostAsync("reel/reel_watch_sequence", body, id, sendAuth: signedIn, ct).ConfigureAwait(false);
+        CaptureVisitorData(json);
+        return ParseShortsSequence(json);
+    }
+
+    private static HomeFeed ParseShortsSequence(JsonNode json)
+    {
+        var items = new List<FeedItem>();
+        if (json["entries"] is JsonArray entries)
+        {
+            foreach (var entry in entries)
             {
-                // Mark as short when duration suggests it
-                if (v.Video.Duration is { } d && d.TotalSeconds <= 60)
+                var ep = entry?["command"]?["reelWatchEndpoint"];
+                var videoId = ep?["videoId"]?.GetValue<string>();
+                if (string.IsNullOrEmpty(videoId)) continue;
+                var thumb = ep?["thumbnail"]?["thumbnails"]?.AsArray()?.LastOrDefault()?["url"]?.GetValue<string>();
+                items.Add(new VideoFeedItem
                 {
-                    return new VideoFeedItem
+                    Id = videoId,
+                    Video = new Video
                     {
-                        Id = v.Id,
-                        Video = new Video
-                        {
-                            Id = v.Video.Id,
-                            Title = v.Video.Title,
-                            Description = v.Video.Description,
-                            ChannelId = v.Video.ChannelId,
-                            ChannelTitle = v.Video.ChannelTitle,
-                            ChannelAvatarUrl = v.Video.ChannelAvatarUrl,
-                            ThumbnailUrl = v.Video.ThumbnailUrl,
-                            Duration = v.Video.Duration,
-                            ViewCount = v.Video.ViewCount,
-                            PublishedAt = v.Video.PublishedAt,
-                            IsLive = v.Video.IsLive,
-                            IsShort = true
-                        }
-                    };
-                }
-                return v;
-            })
-            .Where(v => v.Video.IsShort || (v.Video.Duration is { } d2 && d2.TotalSeconds <= 60))
-            .Cast<FeedItem>()
-            .ToList();
+                        Id = videoId,
+                        Title = "Short",
+                        ThumbnailUrl = thumb,
+                        IsShort = true
+                    }
+                });
+            }
+        }
 
-        if (shorts.Count == 0)
-            return feed;
+        // Prefer server continuation; else seed next page from last videoId (iOS sequence)
+        var cont = json["continuationEndpoint"]?["continuationCommand"]?["token"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(cont) && items.Count > 0)
+            cont = items[^1].Id;
 
-        return new HomeFeed { Items = shorts, ContinuationToken = feed.ContinuationToken };
+        return new HomeFeed { Items = items, ContinuationToken = cont };
     }
 
 
-    /// <summary>Load comments via /next (WEB). First call resolves entry continuation.</summary>
+    /// <summary>
+    /// Comments via /next with protobuf continuation (iOS buildCommentsContinuation + executeComments).
+    /// </summary>
     public async Task<CommentsPage> GetCommentsAsync(string videoId, string? continuation = null, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(continuation))
-        {
-            var nextBody = BuildContext(new { videoId }, ClientIdentity.Web);
-            var nextJson = await PostAsync("next", nextBody, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
-            continuation = FindCommentsContinuation(nextJson);
-            System.Diagnostics.Debug.WriteLine($"[Comments] entry continuation={(continuation is null ? "null" : continuation[..Math.Min(24, continuation.Length)] + "…")}");
-            if (continuation is null)
-                return new CommentsPage();
-        }
-
+        continuation ??= BuildCommentsContinuation(videoId, sortBy: 0);
         var body = BuildContext(new { continuation }, ClientIdentity.Web);
         var json = await PostAsync("next", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
+        CaptureVisitorData(json);
         return ParseComments(json);
+    }
+
+    /// <summary>Port of iOS InnertubeClient.buildCommentsContinuation (sortBy 0 = top).</summary>
+    private static string BuildCommentsContinuation(string videoId, int sortBy)
+    {
+        // proto helpers (length-delimited string / varint)
+        static byte[] Varint(int value)
+        {
+            var bytes = new List<byte>();
+            uint v = (uint)value;
+            while (v >= 0x80)
+            {
+                bytes.Add((byte)(v | 0x80));
+                v >>= 7;
+            }
+            bytes.Add((byte)v);
+            return bytes.ToArray();
+        }
+        static byte[] Key(int field, int wireType) => Varint((field << 3) | wireType);
+        static byte[] ProtoString(int field, string value)
+        {
+            var payload = Encoding.UTF8.GetBytes(value);
+            var head = Key(field, 2);
+            var len = Varint(payload.Length);
+            var buf = new byte[head.Length + len.Length + payload.Length];
+            Buffer.BlockCopy(head, 0, buf, 0, head.Length);
+            Buffer.BlockCopy(len, 0, buf, head.Length, len.Length);
+            Buffer.BlockCopy(payload, 0, buf, head.Length + len.Length, payload.Length);
+            return buf;
+        }
+        static byte[] ProtoInt32(int field, int value)
+        {
+            var head = Key(field, 0);
+            var body = Varint(value);
+            var buf = new byte[head.Length + body.Length];
+            Buffer.BlockCopy(head, 0, buf, 0, head.Length);
+            Buffer.BlockCopy(body, 0, buf, head.Length, body.Length);
+            return buf;
+        }
+        static byte[] ProtoMessage(int field, byte[] value)
+        {
+            var head = Key(field, 2);
+            var len = Varint(value.Length);
+            var buf = new byte[head.Length + len.Length + value.Length];
+            Buffer.BlockCopy(head, 0, buf, 0, head.Length);
+            Buffer.BlockCopy(len, 0, buf, head.Length, len.Length);
+            Buffer.BlockCopy(value, 0, buf, head.Length + len.Length, value.Length);
+            return buf;
+        }
+        static byte[] Concat(params byte[][] parts)
+        {
+            var n = parts.Sum(p => p.Length);
+            var buf = new byte[n];
+            var o = 0;
+            foreach (var p in parts)
+            {
+                Buffer.BlockCopy(p, 0, buf, o, p.Length);
+                o += p.Length;
+            }
+            return buf;
+        }
+
+        var ctx = ProtoString(2, videoId);
+        var opts = Concat(
+            ProtoString(4, videoId),
+            ProtoInt32(6, sortBy),
+            ProtoInt32(15, 2));
+        var paramsMsg = Concat(
+            ProtoMessage(4, opts),
+            ProtoString(8, "comments-section"));
+        var root = Concat(
+            ProtoMessage(2, ctx),
+            ProtoInt32(3, 6),
+            ProtoMessage(6, paramsMsg));
+
+        // base64url + percent-encode (iOS base64URLEncoded + percentEncode)
+        var b64 = Convert.ToBase64String(root).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        return Uri.EscapeDataString(b64);
     }
 
     private static string? FindCommentsContinuation(JsonNode json)
     {
-        // Prefer explicit comments section continuation tokens
         string? found = null;
         void Walk(JsonNode? n)
         {
             if (found is not null || n is null) return;
             if (n is JsonObject obj)
             {
-                // commentsEntryPointHeaderRenderer / section list continuations
-                if (obj.TryGetPropertyValue("continuationEndpoint", out var ep) && ep is not null)
-                {
-                    var token = ep["continuationCommand"]?["token"]?.GetValue<string>();
-                    if (!string.IsNullOrEmpty(token) && token.Length > 20)
-                    {
-                        // Heuristic: comment tokens often contain "comments" context; accept first solid token under engagement
-                        found = token;
-                        return;
-                    }
-                }
                 if (obj.TryGetPropertyValue("continuationItemRenderer", out var cir) && cir is not null)
                 {
                     var token = cir["continuationEndpoint"]?["continuationCommand"]?["token"]?.GetValue<string>()
@@ -224,7 +300,8 @@ public sealed partial class InnertubeClient
             throw new HttpRequestException(
                 $"InnerTube {endpoint}/{id.ClientName} {(int)response.StatusCode} {response.ReasonPhrase}: {snippet}");
         }
-        var node = JsonNode.Parse(raw);
-        return node ?? throw new InvalidOperationException("Empty InnerTube response");
+        var node = JsonNode.Parse(raw) ?? throw new InvalidOperationException("Empty InnerTube response");
+        CaptureVisitorData(node);
+        return node;
     }
 }

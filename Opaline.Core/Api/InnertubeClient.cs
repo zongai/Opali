@@ -23,6 +23,9 @@ public sealed partial class InnertubeClient
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>Cached visitorData from responseContext (iOS InnertubeSession).</summary>
+    public string? VisitorData { get; private set; }
+
     public InnertubeClient(HttpClient http, ClientIdentity? identity = null)
     {
         _http = http;
@@ -43,19 +46,20 @@ public sealed partial class InnertubeClient
     public async Task<HomeFeed> GetHomeFeedAsync(string? continuation = null, CancellationToken ct = default)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        // iOS: anonymous → WEB browse; signed-in → TV authenticatedBrowse (device OAuth token)
+        // iOS: both anonymous and authenticated home use TVHTML5 context (executeBrowse / executeBrowseAnonymous).
         var signedIn = _oauth is not null && _oauth.IsSignedIn;
-        var id = signedIn ? ClientIdentity.Tv : ClientIdentity.Web;
+        var id = ClientIdentity.Tv;
         var body = BuildContext(continuation is null
             ? new { browseId = "FEwhat_to_watch" }
             : new { continuation },
             id);
 
         var json = await PostAsync("browse", body, id, sendAuth: signedIn, ct).ConfigureAwait(false);
+        CaptureVisitorData(json);
         var feed = ParseHomeFeed(json);
         feed = FilterLongForm(feed);
         System.Diagnostics.Debug.WriteLine(
-            $"[Home] browse/{id.ClientName} auth={signedIn} items={feed.Items.Count} in {sw.ElapsedMilliseconds}ms");
+            $"[Home] browse/TVHTML5 auth={signedIn} items={feed.Items.Count} in {sw.ElapsedMilliseconds}ms");
         if (feed.Items.Count > 0 || continuation is not null)
             return feed;
 
@@ -677,6 +681,20 @@ public sealed partial class InnertubeClient
             }
         }
         return (url, s, sp ?? "sig");
+    }
+
+    private void CaptureVisitorData(JsonNode json)
+    {
+        try
+        {
+            var vd = json["responseContext"]?["visitorData"]?.GetValue<string>();
+            if (!string.IsNullOrEmpty(vd))
+                VisitorData = vd;
+        }
+        catch
+        {
+            // ignore
+        }
     }
 }
 
