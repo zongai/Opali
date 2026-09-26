@@ -596,3 +596,9 @@
 "player.translate.error.myMemoryParse" = "MyMemory 返回異常";
 "player.translate.error.lingvaParse" = "Lingva 返回異常";
 "player.translate.error.deepLParse" = "DeepL 返回異常";
+
+"video.menu.notInterested" = "不感興趣";
+"video.menu.dontRecommendChannel" = "不推薦此頻道";
+"video.menu.snooze" = "暫時隱藏";
+"video.menu.feedbackGeneric" = "隱藏";
+"video.menu.feedbackFailed" = "無法更新推薦";

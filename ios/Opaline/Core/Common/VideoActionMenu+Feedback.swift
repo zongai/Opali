@@ -4,15 +4,11 @@ import UIKit
 
 /// "Remove from watch history", "Not interested", "Don't recommend
 /// channel", "Hide" — whatever the response this card came from offered.
-/// Each arrives worded by YouTube with its own opaque token, so nothing
-/// here tells one from another (#105, #106).
+/// Labels and tokens are server-supplied; the official `/feedback` endpoint
+/// consumes the opaque token as-is.
 extension VideoActionMenu {
-    /// What the toast says once the token goes through. The response
-    /// carries no wording of its own and the actions are indistinguishable
-    /// in it, so the screen that opened the menu names the outcome: a feed
-    /// that ranks by taste was retuned, anywhere else the video just went
-    /// away. Both strings are YouTube's own, lifted from the official app
-    /// in all 13 languages rather than translated here.
+    /// Toast after a successful feedback call, lifted from the official app
+    /// wording rather than inventing copy here.
     enum FeedbackOutcome {
         case tunedRecommendations, removed
 
@@ -33,17 +29,21 @@ extension VideoActionMenu {
         onRemoved: (() -> Void)?,
         engagement: EngagementService = ServiceContainer.engagement
     ) -> [PlayerMenuItem] {
-        // The one line that says which actions the response this card came
-        // from actually offered, labels and icon types as sent.
         let described = video.feedbackActions
             .map { "\($0.label)[\($0.icon ?? "-")]" }
             .joined(separator: ", ")
         AppLog.innertube("feedback actions for \(video.id): \(described)")
-        return video.feedbackActions.map { action in
+
+        // Prefer not-interested / don't-recommend first when present.
+        let ordered = video.feedbackActions.sorted { a, b in
+            rank(a) < rank(b)
+        }
+
+        return ordered.map { action in
             PlayerMenuItem(
                 title: action.label,
                 isDestructive: true,
-                iconName: "icon_minus_circle"
+                iconName: iconName(for: action)
             ) {
                 engagement.sendFeedback(token: action.token) { result in
                     DispatchQueue.main.async {
@@ -58,5 +58,26 @@ extension VideoActionMenu {
                 }
             }
         }
+    }
+
+    private static func rank(_ action: FeedbackAction) -> Int {
+        let icon = action.icon?.uppercased() ?? ""
+        if icon.contains("NOT_INTERESTED") { return 0 }
+        if icon.contains("NOT_RECOMMENDED") || icon.contains("CHANNEL") {
+            return 1
+        }
+        if icon.contains("SNOOZE") { return 2 }
+        return 3
+    }
+
+    private static func iconName(for action: FeedbackAction) -> String {
+        // Asset catalog only ships a generic minus; keep one icon for all
+        // feedback rows so missing-asset gaps do not leave blank leading space.
+        _ = action
+        return "icon_minus_circle"
+    }
+
+    private static func showFailed(in view: UIView) {
+        ToastView.show("video.menu.feedbackFailed".localized, in: view)
     }
 }

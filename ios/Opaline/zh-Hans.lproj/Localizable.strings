@@ -596,3 +596,9 @@
 "player.translate.error.myMemoryParse" = "MyMemory 返回异常";
 "player.translate.error.lingvaParse" = "Lingva 返回异常";
 "player.translate.error.deepLParse" = "DeepL 返回异常";
+
+"video.menu.notInterested" = "不感兴趣";
+"video.menu.dontRecommendChannel" = "不推荐该频道";
+"video.menu.snooze" = "暂时隐藏";
+"video.menu.feedbackGeneric" = "隐藏";
+"video.menu.feedbackFailed" = "无法更新推荐";

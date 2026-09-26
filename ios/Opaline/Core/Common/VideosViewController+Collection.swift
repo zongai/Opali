@@ -43,10 +43,11 @@ extension VideosViewController {
         VideoActionMenu.present(
             video: video,
             from: self,
-            anchor: anchor
-        ) { [weak self] in
-            self?.removeVideoFromList(id: video.id)
-        }
+            anchor: anchor,
+            onRemoved: { [weak self] in
+                self?.removeVideoFromList(id: video.id)
+            }
+        )
     }
 
     /// Drops a video the user asked not to see again. A full reload rather

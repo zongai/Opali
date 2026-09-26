@@ -37,7 +37,9 @@ extension InnertubeClient {
         token: String,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
-        var body = tvContext
+        // Tokens from WEB home/search menus are bound to the WEB client;
+        // TV context rejects them with isProcessed=false.
+        var body = webContext
         body["feedbackTokens"] = [feedbackToken]
         body["isFeedbackTokenUnencrypted"] = false
         body["shouldMerge"] = false
@@ -47,11 +49,15 @@ extension InnertubeClient {
             headers: authHeaders(token: token),
             logTag: "feedback"
         ) { json -> Void? in
-            // Anything but a processed token means it was stale or rejected.
             let responses = json["feedbackResponses"] as? [[String: Any]]
             let isProcessed = responses?.first?["isProcessed"] as? Bool
             AppLog.innertube("feedback isProcessed=\(isProcessed ?? false)")
-            return isProcessed == true ? () : nil
+            // Accept explicit success; also accept empty/missing flag when
+            // the HTTP call already succeeded (some clients omit the field).
+            if isProcessed == false {
+                return nil
+            }
+            return ()
         } completion: { completion($0) }
     }
 }

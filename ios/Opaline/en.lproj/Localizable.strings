@@ -652,3 +652,9 @@
 "player.translate.error.myMemoryParse" = "MyMemory returned an unexpected response";
 "player.translate.error.lingvaParse" = "Lingva returned an unexpected response";
 "player.translate.error.deepLParse" = "DeepL returned an unexpected response";
+
+"video.menu.notInterested" = "Not interested";
+"video.menu.dontRecommendChannel" = "Don't recommend channel";
+"video.menu.snooze" = "Snooze video";
+"video.menu.feedbackGeneric" = "Hide";
+"video.menu.feedbackFailed" = "Couldn't update recommendations";
