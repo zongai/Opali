@@ -79,4 +79,19 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnIgnoreAiDubsChanged(bool value) => AutoDubPreference.IgnoreAiDubs = value;
     partial void OnAutoDubLanguageChanged(string value)
         => AutoDubPreference.LanguageOverride = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private async Task RefreshAv1ProbeAsync()
+    {
+        try
+        {
+            await Av1HardwareProbe.ProbeAsync();
+            Av1ProbeDetail = Av1Support.ProbeDetail
+                + (Av1Support.HardwareSupported == true ? " · 可用" :
+                   Av1Support.HardwareSupported == false ? " · 不可用" : "");
+        }
+        catch (Exception ex)
+        {
+            Av1ProbeDetail = "探测失败: " + ex.Message;
+        }
+    }
 }
