@@ -26,9 +26,9 @@ enum TranslationError: LocalizedError {
         case .failed(let m):
             return m
         case .allFailed(let target, let details):
-            let lines = details.map { "\($0.0.rawValue): \($0.1)" }.joined(separator: "
-")
-            return "player.translate.error.allFailed".localized(with: target) + "
+            let lines = details.map { "\($0.0.rawValue): \($0.1)" }.joined(separator: "\n")
+            let header = "player.translate.error.allFailed".localized(with: target)
+            return header + "\n" + lines
 " + lines
         }
     }

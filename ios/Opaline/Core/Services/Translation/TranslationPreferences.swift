@@ -145,26 +145,23 @@ enum TranslationPreferences {
         if keys.count == 1 {
             return mask
         }
-        return "settings.translation.deepL.keyCount".localized(with: keys.count) + " · " + mask
+        return String(format: "settings.translation.deepL.keyCount".localized, keys.count) + " · " + mask
     }
 
     /// Text blob shown in the multi-key editor (one key per line).
     static var deepLKeysEditorText: String {
-        deepLAPIKeys.joined(separator: "
-")
+        deepLAPIKeys.joined(separator: "\n")
     }
 
     static func setDeepLKeys(fromEditorText text: String?) {
         deepLAPIKeys = parseKeyBlob(text ?? "")
     }
 
-    /// Split by newline / comma / semicolon / whitespace runs.
+    /// Split by newline / comma / semicolon.
     static func parseKeyBlob(_ text: String) -> [String] {
         let normalized = text
-            .replacingOccurrences(of: ",", with: "
-")
-            .replacingOccurrences(of: ";", with: "
-")
+            .replacingOccurrences(of: ",", with: "\n")
+            .replacingOccurrences(of: ";", with: "\n")
         return normalized
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }

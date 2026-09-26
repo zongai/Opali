@@ -77,7 +77,5 @@ extension VideoActionMenu {
         return "icon_minus_circle"
     }
 
-    private static func showFailed(in view: UIView) {
-        ToastView.show("video.menu.feedbackFailed".localized, in: view)
-    }
 }
+
