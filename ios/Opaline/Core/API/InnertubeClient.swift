@@ -435,3 +435,23 @@ extension Dictionary where Key == String, Value == Any {
         return InnertubeClient.simpleText(from: current)
     }
 }
+
+extension Dictionary where Key == String, Value == Any {
+    func digDict(_ path: String...) -> [String: Any]? {
+        var current: Any? = self
+        for key in path {
+            guard let dict = current as? [String: Any] else { return nil }
+            current = dict[key]
+        }
+        return current as? [String: Any]
+    }
+
+    func digArray(_ path: String...) -> [[String: Any]]? {
+        var current: Any? = self
+        for key in path {
+            guard let dict = current as? [String: Any] else { return nil }
+            current = dict[key]
+        }
+        return current as? [[String: Any]]
+    }
+}
