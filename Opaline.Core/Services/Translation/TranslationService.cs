@@ -278,6 +278,45 @@ public sealed class TranslationService
         throw new TranslationException("Lingva 解析失败");
     }
 
+
+    // ── DeepL (Harbor DeepLTranslate; optional key via OPALINE_DEEPL_KEY) ─
+
+    private async Task<string> DeepLTranslateAsync(string text, string targetLang, CancellationToken ct)
+    {
+        var key = Environment.GetEnvironmentVariable("OPALINE_DEEPL_KEY")
+               ?? Environment.GetEnvironmentVariable("DEEPL_API_KEY");
+        if (string.IsNullOrWhiteSpace(key))
+            throw new TranslationException("未配置 DeepL API Key（OPALINE_DEEPL_KEY）");
+
+        var isFree = key.EndsWith(":fx", StringComparison.Ordinal);
+        var url = isFree
+            ? "https://api-free.deepl.com/v2/translate"
+            : "https://api.deepl.com/v2/translate";
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, url);
+        req.Headers.TryAddWithoutValidation("Authorization", "DeepL-Auth-Key " + key);
+        var body = new
+        {
+            text = new[] { text },
+            target_lang = TargetLanguages.NormalizeDeepL(targetLang)
+        };
+        req.Content = new StringContent(
+            System.Text.Json.JsonSerializer.Serialize(body),
+            Encoding.UTF8,
+            "application/json");
+
+        using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+        var raw = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+            throw new TranslationException($"DeepL 失败 ({(int)resp.StatusCode}): {raw[..Math.Min(120, raw.Length)]}");
+
+        using var doc = System.Text.Json.JsonDocument.Parse(raw);
+        var translations = doc.RootElement.GetProperty("translations");
+        if (translations.GetArrayLength() == 0)
+            throw new TranslationException("DeepL 返回空译文");
+        return translations[0].GetProperty("text").GetString() ?? "";
+    }
+
     /// <summary>Strip VTT/timing lines then translate remaining text blocks.</summary>
     public async Task<string> TranslateCaptionAsync(string rawCaption, string targetLang, CancellationToken ct = default)
     {
