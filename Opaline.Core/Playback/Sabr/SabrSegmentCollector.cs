@@ -86,6 +86,17 @@ public sealed class SabrSegmentCollector
         }
     }
 
+    private void NotePolicy(byte[] payload)
+    {
+        var fields = SabrProtobuf.Parse(payload);
+        // iOS: backoffMs field 4, playbackCookie field 7
+        Policy = new SabrPolicy
+        {
+            BackoffMs = (int)(fields.Number(4) ?? 0),
+            PlaybackCookie = fields.Data(7)
+        };
+    }
+
     private void Finish()
     {
         if (_header is not null)
