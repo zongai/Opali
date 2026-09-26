@@ -850,7 +850,11 @@ public sealed partial class InnertubeClient
             SigChallenge = sigChallenge,
             SigParam = sigParam,
             NParam = nParam,
-            LastModified = f["lastModified"]?.GetValue<string>()
+            LastModified = f["lastModified"]?.GetValue<string>(),
+            InitRangeStart = ParseRangeStart(f["initRange"]),
+            InitRangeEnd = ParseRangeEnd(f["initRange"]),
+            IndexRangeStart = ParseRangeStart(f["indexRange"]),
+            IndexRangeEnd = ParseRangeEnd(f["indexRange"])
         };
     }
 
@@ -858,6 +862,19 @@ public sealed partial class InnertubeClient
     /// Parse signatureCipher: url=...&amp;s=...&amp;sp=sig
     /// Does NOT append unsolved s — StreamUrlResolver solves it first.
     /// </summary>
+
+    private static int ParseRangeStart(JsonNode? node)
+    {
+        var s = node?["start"]?.GetValue<string>() ?? node?["start"]?.ToString();
+        return int.TryParse(s, out var v) ? v : 0;
+    }
+
+    private static int ParseRangeEnd(JsonNode? node)
+    {
+        var s = node?["end"]?.GetValue<string>() ?? node?["end"]?.ToString();
+        return int.TryParse(s, out var v) ? v : 0;
+    }
+
     private static (string? Url, string? S, string? Sp) ParseCipher(string cipher)
     {
         string? url = null, s = null, sp = null;

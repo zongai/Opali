@@ -58,6 +58,10 @@ public sealed class StreamInfo
     /// <summary>Raw n-parameter from the URL, if present (pre-solve).</summary>
     public string? NParam { get; init; }
     public string? LastModified { get; init; }
+    public int InitRangeStart { get; init; }
+    public int InitRangeEnd { get; init; }
+    public int IndexRangeStart { get; init; }
+    public int IndexRangeEnd { get; init; }
 
     public string DisplayLabel => QualityLabel
         ?? (Height is { } h ? $"{h}p" : (IsAudioOnly ? "Audio" : "Unknown"));

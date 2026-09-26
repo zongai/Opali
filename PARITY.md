@@ -27,3 +27,9 @@
 - iOS: extracts `onesieUstreamerConfig` only — **no separate Onesie HTTP delivery**
 - Windows: `OnesieConfigResolver` priority = videoPlayback → onesie; feeds SABR field 5
 - SABR still requires `serverAbrStreamingUrl` + a resolvable ustreamer blob
+
+## HLS 自建 / SIDX
+- `SidxParser` — ISO BMFF sidx box (iOS HLSGenerator+Sidx)
+- `HlsPlaylistGenerator` — media (EXT-X-MAP + BYTERANGE) + master (AUDIO group)
+- `HlsSelfBuiltDelivery` — Range fetch index, local master.m3u8; segments use absolute googlevideo URLs
+- StreamUrlResolver: after official HLS/DASH, before progressive

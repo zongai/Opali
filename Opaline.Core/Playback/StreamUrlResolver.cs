@@ -1,3 +1,4 @@
+using Opaline.Core.Playback.Hls;
 using Opaline.Core.Models;
 
 namespace Opaline.Core.Playback;
@@ -13,6 +14,7 @@ public sealed class StreamUrlResolver
     private readonly PoTokenService _poToken;
     private readonly SignatureTimestampService _sts;
     private readonly SabrDelivery _sabr = new();
+    private readonly HlsSelfBuiltDelivery _hlsSelf = new();
 
     public StreamUrlResolver(
         SignatureSolverService solver,
@@ -104,6 +106,48 @@ public sealed class StreamUrlResolver
                     Audio: null,
                     IsProgressive: false,
                     Kind: StreamKind.DashManifest);
+            }
+        }
+
+
+        // Self-built HLS from SIDX (iOS HLSPlaybackBuilder) — before progressive dual
+        {
+            var (vFmt, aFmt) = SelectBestAdaptive(page, maxHeight);
+            if (vFmt is not null && aFmt is not null
+                && vFmt.IndexRangeEnd > 0 && aFmt.IndexRangeEnd > 0)
+            {
+                try
+                {
+                    var vUrl = await FinalizeUrlAsync(
+                        vFmt.Url, page.Video.Id, vFmt.SigChallenge, vFmt.SigParam, ct).ConfigureAwait(false);
+                    var aUrl = await FinalizeUrlAsync(
+                        aFmt.Url, page.Video.Id, aFmt.SigChallenge, aFmt.SigParam, ct).ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(vUrl) && !string.IsNullOrEmpty(aUrl))
+                    {
+                        var local = await _hlsSelf.TryBuildAsync(vFmt, aFmt, vUrl, aUrl, ct)
+                            .ConfigureAwait(false);
+                        if (!string.IsNullOrEmpty(local))
+                        {
+                            return new ResolvedStream(
+                                PrimaryUrl: local!,
+                                Video: new StreamInfo
+                                {
+                                    Url = local!,
+                                    MimeType = "application/vnd.apple.mpegurl",
+                                    QualityLabel = "HLS-SIDX",
+                                    Height = vFmt.Height,
+                                    Width = vFmt.Width
+                                },
+                                Audio: null,
+                                IsProgressive: false,
+                                Kind: StreamKind.HlsManifest);
+                        }
+                    }
+                }
+                catch
+                {
+                    // fall through
+                }
             }
         }
 
