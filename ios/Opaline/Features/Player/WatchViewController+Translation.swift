@@ -75,8 +75,6 @@ extension WatchViewController {
             }
             if newTitle == nil && newDesc == nil {
                 self.showTranslationToast("player.translate.failed".localized)
-            } else {
-                self.showTranslationToast("player.translate.done".localized)
             }
         }
     }
@@ -129,8 +127,7 @@ extension WatchViewController {
                         self.commentTranslations[c.id] = texts[i]
                     }
                     self.renderComments()
-                    self.showTranslationToast("player.translate.done".localized)
-                case .failure:
+                                    case .failure:
                     self.showTranslationToast("player.translate.failed".localized)
                 }
             }
@@ -157,8 +154,7 @@ extension WatchViewController {
                             SubtitleCue(start: cue.start, end: cue.end, text: t.isEmpty ? cue.text : t)
                         }
                         self.videoPlayerView?.setSubtitleCues(newCues)
-                        self.showTranslationToast("player.translate.done".localized)
-                    case .failure:
+                                            case .failure:
                         self.showTranslationToast("player.translate.failed".localized)
                     }
                 }
