@@ -91,7 +91,7 @@ public sealed partial class InnertubeClient
             var json = await PostAsync("next", body, client, sendAuth: false, ct).ConfigureAwait(false);
             CaptureVisitorData(json);
             var page = ParseComments(json);
-            if (page.Comments.Count > 0 || !string.IsNullOrEmpty(page.Continuation))
+            if (page.Comments.Count > 0 || !string.IsNullOrEmpty(page.ContinuationToken))
                 return page;
         }
         // Last resort: open watch next without synthetic continuation (engagement panels)
