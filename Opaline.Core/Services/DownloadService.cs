@@ -9,6 +9,8 @@ public interface IDownloadService
     Task<string> DownloadVideoAsync(Video video, string streamUrl, IProgress<double>? progress = null, CancellationToken ct = default);
     IReadOnlyList<DownloadedItem> ListDownloads();
     void DeleteDownload(string videoId);
+    string? TryGetLocalMediaPath(string videoId);
+    bool HasOffline(string videoId);
 }
 
 public sealed class DownloadedItem
@@ -84,6 +86,26 @@ public sealed class DownloadService : IDownloadService
         }
         catch { return Array.Empty<DownloadedItem>(); }
     }
+
+
+    public void SaveWatchPage(string videoId, object watchPagePayload)
+    {
+        try
+        {
+            var path = Path.Combine(_root, $"{videoId}.watch.json");
+            var json = System.Text.Json.JsonSerializer.Serialize(watchPagePayload);
+            File.WriteAllText(path, json);
+        }
+        catch { /* ignore */ }
+    }
+
+    public string? TryGetLocalMediaPath(string videoId)
+    {
+        return ListDownloads().FirstOrDefault(i => i.VideoId == videoId)?.FilePath;
+    }
+
+    public bool HasOffline(string videoId)
+        => !string.IsNullOrEmpty(TryGetLocalMediaPath(videoId));
 
     public void DeleteDownload(string videoId)
     {

@@ -33,3 +33,9 @@
 - `HlsPlaylistGenerator` — media (EXT-X-MAP + BYTERANGE) + master (AUDIO group)
 - `HlsSelfBuiltDelivery` — Range fetch index, local master.m3u8; segments use absolute googlevideo URLs
 - StreamUrlResolver: after official HLS/DASH, before progressive
+
+## AV1 / Auto-dub / Offline Watch
+- `Av1Support`: preference gate for av01 in adaptive ladder (Windows MF decode)
+- `AutoDubPreference`: language match + ignore AI `.10` tracks; used in SelectBestAdaptive
+- Offline: `IDownloadService.TryGetLocalMediaPath`; Watch load failure → local file playback
+- Settings: Prefer AV1, Auto-dub, Ignore AI dubs, language code

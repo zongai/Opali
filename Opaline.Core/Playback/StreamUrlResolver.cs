@@ -296,21 +296,39 @@ public sealed class StreamUrlResolver
     public static (StreamInfo? Video, StreamInfo? Audio) SelectBestAdaptive(
         WatchPage page, int maxHeight = 1080)
     {
-        var video = page.Streams
+        // Video ladder: admit av01 only when Av1Support allows (iOS AV1Support)
+        var videoCandidates = page.Streams
             .Where(s => s.IsVideoOnly && !string.IsNullOrEmpty(s.Url))
             .Where(s => s.Height is null || s.Height <= maxHeight)
+            .Where(s => Av1Support.AllowsMime(s.MimeType) && Av1Support.AllowsMime(s.Codecs))
+            .ToList();
+
+        // Prefer AV1 when supported, else prefer avc1 over vp9 for broader decode
+        var video = videoCandidates
             .OrderByDescending(s => s.Height ?? 0)
+            .ThenByDescending(s => ScoreVideoCodec(s))
             .ThenByDescending(s => s.Bitrate ?? 0)
             .FirstOrDefault();
 
-        // Prefer mp4/webm audio, highest bitrate
-        var audio = page.Streams
+        var audioList = page.Streams
             .Where(s => s.IsAudioOnly && !string.IsNullOrEmpty(s.Url))
-            .OrderByDescending(s => s.MimeType.Contains("mp4", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
-            .ThenByDescending(s => s.Bitrate ?? 0)
-            .FirstOrDefault();
+            .ToList();
+        var audio = AutoDubPreference.SelectAudio(audioList)
+            ?? audioList
+                .OrderByDescending(s => s.MimeType.Contains("mp4", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+                .ThenByDescending(s => s.Bitrate ?? 0)
+                .FirstOrDefault();
 
         return (video, audio);
+    }
+
+    private static int ScoreVideoCodec(StreamInfo s)
+    {
+        var m = ((s.MimeType ?? "") + (s.Codecs ?? "")).ToLowerInvariant();
+        if (Av1Support.IsSupported && m.Contains("av01")) return 3;
+        if (m.Contains("avc1") || m.Contains("avc")) return 2;
+        if (m.Contains("vp9") || m.Contains("vp09")) return 1;
+        return 0;
     }
 }
 

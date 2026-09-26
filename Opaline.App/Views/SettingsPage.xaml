@@ -47,6 +47,18 @@
                        Style="{StaticResource CaptionTextBlockStyle}"
                        Opacity="0.75"
                        AutomationProperties.AutomationId="SettingsBotGuardStatus" />
+            <ToggleSwitch Header="Prefer AV1 (when available)"
+                          IsOn="{x:Bind ViewModel.PreferAv1, Mode=TwoWay}"
+                          AutomationProperties.AutomationId="SettingsPreferAv1" />
+            <ToggleSwitch Header="Auto-dub (prefer language audio)"
+                          IsOn="{x:Bind ViewModel.AutoDubEnabled, Mode=TwoWay}"
+                          AutomationProperties.AutomationId="SettingsAutoDub" />
+            <ToggleSwitch Header="Ignore AI auto-dubs"
+                          IsOn="{x:Bind ViewModel.IgnoreAiDubs, Mode=TwoWay}"
+                          AutomationProperties.AutomationId="SettingsIgnoreAiDubs" />
+            <TextBox Header="Auto-dub language (e.g. zh, en, ja — empty = system)"
+                     Text="{x:Bind ViewModel.AutoDubLanguage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     AutomationProperties.AutomationId="SettingsAutoDubLang" />
 
             <TextBlock Text="Opaline for Windows v0.3.1" Opacity="0.5" Margin="0,16,0,0" />
             <TextBlock Text="Crash log: crash.log (next to Opaline.App.exe) · Session: %LOCALAPPDATA%\Opaline\oauth.json" Opacity="0.45"

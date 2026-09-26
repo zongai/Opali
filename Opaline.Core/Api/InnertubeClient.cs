@@ -854,7 +854,10 @@ public sealed partial class InnertubeClient
             InitRangeStart = ParseRangeStart(f["initRange"]),
             InitRangeEnd = ParseRangeEnd(f["initRange"]),
             IndexRangeStart = ParseRangeStart(f["indexRange"]),
-            IndexRangeEnd = ParseRangeEnd(f["indexRange"])
+            IndexRangeEnd = ParseRangeEnd(f["indexRange"]),
+            AudioTrackId = f["audioTrack"]?["id"]?.GetValue<string>(),
+            AudioTrackName = f["audioTrack"]?["displayName"]?.GetValue<string>(),
+            AudioIsDefault = f["audioTrack"]?["audioIsDefault"]?.GetValue<bool>() ?? false
         };
     }
 

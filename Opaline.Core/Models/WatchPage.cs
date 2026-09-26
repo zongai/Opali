@@ -62,6 +62,11 @@ public sealed class StreamInfo
     public int InitRangeEnd { get; init; }
     public int IndexRangeStart { get; init; }
     public int IndexRangeEnd { get; init; }
+    public string? AudioTrackId { get; init; }
+    public string? AudioTrackName { get; init; }
+    public bool AudioIsDefault { get; init; }
+    public bool IsAv1 => MimeType?.Contains("av01", StringComparison.OrdinalIgnoreCase) == true
+                      || Codecs?.Contains("av01", StringComparison.OrdinalIgnoreCase) == true;
 
     public string DisplayLabel => QualityLabel
         ?? (Height is { } h ? $"{h}p" : (IsAudioOnly ? "Audio" : "Unknown"));

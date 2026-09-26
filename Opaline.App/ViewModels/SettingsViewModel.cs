@@ -19,6 +19,10 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool rydEnabled;
     [ObservableProperty] private string solverBaseUrl = "";
     [ObservableProperty] private string botGuardStatus = "未初始化";
+    [ObservableProperty] private bool preferAv1 = true;
+    [ObservableProperty] private bool autoDubEnabled = true;
+    [ObservableProperty] private bool ignoreAiDubs = true;
+    [ObservableProperty] private string autoDubLanguage = "";
 
     public SettingsViewModel(
         IThemeService theme,
@@ -38,6 +42,10 @@ public partial class SettingsViewModel : ObservableObject
         SponsorBlockEnabled = sb.Enabled;
         RydEnabled = ryd.Enabled;
         SolverBaseUrl = AppUrls.SolverServer.BaseUrl;
+        PreferAv1 = Av1Support.IsPreferred;
+        AutoDubEnabled = AutoDubPreference.IsEnabled;
+        IgnoreAiDubs = AutoDubPreference.IgnoreAiDubs;
+        AutoDubLanguage = AutoDubPreference.LanguageOverride ?? "";
         BotGuardStatus = poToken.HasLocalBotGuard
             ? "WebView2 BotGuard 已挂载（失败时回退远程 /get_pot）"
             : "仅远程 /get_pot（启动后将尝试挂载 WebView2）";
@@ -62,4 +70,10 @@ public partial class SettingsViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(value))
             AppUrls.SolverServer.BaseUrl = value.Trim();
     }
+
+    partial void OnPreferAv1Changed(bool value) => Av1Support.IsPreferred = value;
+    partial void OnAutoDubEnabledChanged(bool value) => AutoDubPreference.IsEnabled = value;
+    partial void OnIgnoreAiDubsChanged(bool value) => AutoDubPreference.IgnoreAiDubs = value;
+    partial void OnAutoDubLanguageChanged(string value)
+        => AutoDubPreference.LanguageOverride = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

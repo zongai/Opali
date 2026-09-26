@@ -93,6 +93,25 @@ public partial class WatchViewModel : ObservableObject
     partial void OnErrorMessageChanged(string? value) => HasError = !string.IsNullOrEmpty(value);
 
     [RelayCommand]
+    private bool TryPlayOffline(string videoId)
+    {
+        try
+        {
+            var path = _downloads.TryGetLocalMediaPath(videoId);
+            if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return false;
+            PlayableUrl = path;
+            AudioUrl = null;
+            IsManifest = false;
+            StreamKindLabel = "Offline";
+            QualityLabel = "Offline";
+            if (Video is null)
+                Video = new Video { Id = videoId, Title = videoId };
+            DisplayTitle = Video.Title ?? videoId;
+            return true;
+        }
+        catch { return false; }
+    }
+
     public async Task LoadAsync(string videoId)
     {
         if (string.IsNullOrWhiteSpace(videoId)) return;
@@ -171,8 +190,16 @@ public partial class WatchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Failed to load video: {ex.Message}";
-            AppLog.Error("Watch", "Load failed", ex);
+            if (TryPlayOffline(videoId))
+            {
+                AppLog.Info("Watch", $"offline playback {videoId}");
+                ErrorMessage = null;
+            }
+            else
+            {
+                ErrorMessage = $"Failed to load video: {ex.Message}";
+                AppLog.Error("Watch", "Load failed", ex);
+            }
         }
         finally { IsLoading = false; }
     }
