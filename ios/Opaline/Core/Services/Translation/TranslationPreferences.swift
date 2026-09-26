@@ -60,42 +60,128 @@ enum TranslationPreferences {
         }
     }
 
+
     /// Ordered chain: preferred first, then the rest (DeepL last unless preferred).
-    
-    /// DeepL API key from Settings (optional). Free keys end with `:fx`.
-    static var deepLAPIKey: String? {
-        get {
-            let s = UserDefaults.standard.string(forKey: UserDefaultsKeys.Translation.deepLAPIKey)?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            return (s?.isEmpty == false) ? s : nil
-        }
-        set {
-            let trimmed = newValue?.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let trimmed, !trimmed.isEmpty {
-                UserDefaults.standard.set(trimmed, forKey: UserDefaultsKeys.Translation.deepLAPIKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.Translation.deepLAPIKey)
-            }
-        }
-    }
-
-    static var deepLKeyDisplay: String {
-        guard let key = deepLAPIKey, !key.isEmpty else {
-            return "settings.translation.deepL.notSet".localized
-        }
-        if key.count <= 8 { return "••••" }
-        return String(key.prefix(4)) + "••••" + String(key.suffix(4))
-    }
-
-static var engineChain: [TranslationEngine] {
+    static var engineChain: [TranslationEngine] {
         let preferred = preferredEngine.asServiceEngine
         var rest = TranslationEngine.allCases.filter { $0 != preferred }
-        // Keep DeepL at end of rest if not preferred
         if preferred != .deepL {
             rest = rest.filter { $0 != .deepL } + [.deepL]
         }
         return [preferred] + rest
     }
+
+    // MARK: - DeepL keys (multi-key)
+
+    /// All configured DeepL API keys (order = try order). Free keys end with `:fx`.
+    /// Stored as an array; migrates the legacy single-string key on first read.
+    static var deepLAPIKeys: [String] {
+        get {
+            let defaults = UserDefaults.standard
+            if let arr = defaults.stringArray(forKey: UserDefaultsKeys.Translation.deepLAPIKeys) {
+                return sanitizeKeys(arr)
+            }
+            // Migrate legacy single key
+            if let legacy = defaults.string(forKey: UserDefaultsKeys.Translation.deepLAPIKey)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+               !legacy.isEmpty {
+                let keys = sanitizeKeys([legacy])
+                defaults.set(keys, forKey: UserDefaultsKeys.Translation.deepLAPIKeys)
+                defaults.removeObject(forKey: UserDefaultsKeys.Translation.deepLAPIKey)
+                return keys
+            }
+            // Environment fallbacks (not persisted)
+            var env: [String] = []
+            for name in ["OPALINE_DEEPL_KEY", "DEEPL_API_KEY", "OPALINE_DEEPL_KEYS"] {
+                if let v = ProcessInfo.processInfo.environment[name], !v.isEmpty {
+                    env.append(contentsOf: parseKeyBlob(v))
+                }
+            }
+            return sanitizeKeys(env)
+        }
+        set {
+            let keys = sanitizeKeys(newValue)
+            let defaults = UserDefaults.standard
+            if keys.isEmpty {
+                defaults.removeObject(forKey: UserDefaultsKeys.Translation.deepLAPIKeys)
+            } else {
+                defaults.set(keys, forKey: UserDefaultsKeys.Translation.deepLAPIKeys)
+            }
+            defaults.removeObject(forKey: UserDefaultsKeys.Translation.deepLAPIKey)
+        }
+    }
+
+    /// First configured key (compatibility).
+    static var deepLAPIKey: String? {
+        get { deepLAPIKeys.first }
+        set {
+            if let newValue, !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                var keys = deepLAPIKeys
+                if keys.isEmpty {
+                    deepLAPIKeys = sanitizeKeys([newValue])
+                } else {
+                    keys[0] = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                    deepLAPIKeys = keys
+                }
+            } else {
+                deepLAPIKeys = []
+            }
+        }
+    }
+
+    /// Settings detail text: count + masked first key.
+    static var deepLKeyDisplay: String {
+        let keys = deepLAPIKeys
+        guard !keys.isEmpty else {
+            return "settings.translation.deepL.notSet".localized
+        }
+        let first = keys[0]
+        let mask: String
+        if first.count <= 8 {
+            mask = "••••"
+        } else {
+            mask = String(first.prefix(4)) + "••••" + String(first.suffix(4))
+        }
+        if keys.count == 1 {
+            return mask
+        }
+        return "settings.translation.deepL.keyCount".localized(with: keys.count) + " · " + mask
+    }
+
+    /// Text blob shown in the multi-key editor (one key per line).
+    static var deepLKeysEditorText: String {
+        deepLAPIKeys.joined(separator: "
+")
+    }
+
+    static func setDeepLKeys(fromEditorText text: String?) {
+        deepLAPIKeys = parseKeyBlob(text ?? "")
+    }
+
+    /// Split by newline / comma / semicolon / whitespace runs.
+    static func parseKeyBlob(_ text: String) -> [String] {
+        let normalized = text
+            .replacingOccurrences(of: ",", with: "
+")
+            .replacingOccurrences(of: ";", with: "
+")
+        return normalized
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private static func sanitizeKeys(_ keys: [String]) -> [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for raw in keys {
+            let k = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !k.isEmpty, seen.insert(k).inserted else { continue }
+            out.append(k)
+        }
+        return out
+    }
+
 
     static var targetDisplayName: String {
         if targetLanguageOverride == nil {

@@ -359,14 +359,64 @@ final class TranslationService {
         _ target: String,
         _ completion: @escaping (Result<String, Error>) -> Void
     ) {
-        let key = TranslationPreferences.deepLAPIKey
-            ?? ProcessInfo.processInfo.environment["OPALINE_DEEPL_KEY"]
-            ?? ProcessInfo.processInfo.environment["DEEPL_API_KEY"]
-        guard let key, !key.isEmpty else {
+        let keys = TranslationPreferences.deepLAPIKeys
+        guard !keys.isEmpty else {
             completion(.failure(TranslationError.noDeepLKey))
             return
         }
-        let free = key.hasSuffix(":fx")
+        tryDeepLKeys(keys, text: text, target: target, completion: completion)
+    }
+
+    /// Try keys in order; on quota / auth / rate-limit advance to the next.
+    private func tryDeepLKeys(
+        _ keys: [String],
+        text: String,
+        target: String,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        guard let key = keys.first else {
+            completion(.failure(TranslationError.noDeepLKey))
+            return
+        }
+        let rest = Array(keys.dropFirst())
+        deepLRequest(text: text, target: target, apiKey: key) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let s):
+                completion(.success(s))
+            case .failure(let e):
+                if !rest.isEmpty, Self.shouldRotateDeepLKey(e) {
+                    AppLog.log("Translate", "DeepL key failed, trying next (\(rest.count) left)")
+                    self.tryDeepLKeys(rest, text: text, target: target, completion: completion)
+                } else if !rest.isEmpty {
+                    // Network/parse: still try remaining keys once
+                    self.tryDeepLKeys(rest, text: text, target: target, completion: completion)
+                } else {
+                    completion(.failure(e))
+                }
+            }
+        }
+    }
+
+    private static func shouldRotateDeepLKey(_ error: Error) -> Bool {
+        if case TranslationError.rateLimited = error { return true }
+        if case TranslationError.noDeepLKey = error { return true }
+        let msg = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        let upper = msg.uppercased()
+        return upper.contains("403")
+            || upper.contains("456")
+            || upper.contains("QUOTA")
+            || upper.contains("AUTH")
+            || upper.contains("FORBIDDEN")
+    }
+
+    private func deepLRequest(
+        text: String,
+        target: String,
+        apiKey: String,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        let free = apiKey.hasSuffix(":fx")
         let base = free
             ? "https://api-free.deepl.com/v2/translate"
             : "https://api.deepl.com/v2/translate"
@@ -376,9 +426,10 @@ final class TranslationService {
         }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
-        req.setValue("DeepL-Auth-Key \(key)", forHTTPHeaderField: "Authorization")
+        req.setValue("DeepL-Auth-Key \(apiKey)", forHTTPHeaderField: "Authorization")
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        let tl = target.uppercased().replacingOccurrences(of: "ZH-CN", with: "ZH")
+        let tl = target.uppercased()
+            .replacingOccurrences(of: "ZH-CN", with: "ZH")
             .replacingOccurrences(of: "ZH-TW", with: "ZH")
         let body = "text=\(text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text)&target_lang=\(tl)"
         req.httpBody = body.data(using: .utf8)
@@ -387,8 +438,13 @@ final class TranslationService {
                 completion(.failure(error))
                 return
             }
-            if (response as? HTTPURLResponse)?.statusCode == 429 {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            if code == 429 {
                 completion(.failure(TranslationError.rateLimited(.deepL)))
+                return
+            }
+            if code == 403 || code == 456 {
+                completion(.failure(TranslationError.failed("DeepL HTTP \(code)")))
                 return
             }
             guard let data,

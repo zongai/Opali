@@ -581,8 +581,9 @@
 "settings.footer.translationTarget" = "用于标题、评论与字幕。跟随系统时使用应用界面语言。";
 
 "settings.row.translationDeepLKey" = "DeepL API 密钥";
-"settings.footer.translationDeepLKey" = "可选。免费密钥以 :fx 结尾。仅保存在本机。";
-"settings.translation.deepL.placeholder" = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx";
+"settings.footer.translationDeepLKey" = "可选。每行一个密钥（或用逗号分隔）。免费密钥以 :fx 结尾。额度/限流时自动切换下一个。仅保存在本机。";
+"settings.translation.deepL.placeholder" = "key1:fx
+key2:fx";
 "settings.translation.deepL.clear" = "清除密钥";
 "settings.translation.deepL.notSet" = "未设置";
 "player.translate.error.empty" = "没有可翻译的内容。";
@@ -602,3 +603,4 @@
 "video.menu.snooze" = "暂时隐藏";
 "video.menu.feedbackGeneric" = "隐藏";
 "video.menu.feedbackFailed" = "无法更新推荐";
+"settings.translation.deepL.keyCount" = "%d 个密钥";

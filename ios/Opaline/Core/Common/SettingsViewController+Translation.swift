@@ -183,22 +183,24 @@ extension SettingsViewController {
         )
         alert.addTextField { tf in
             tf.placeholder = "settings.translation.deepL.placeholder".localized
-            tf.isSecureTextEntry = true
+            tf.isSecureTextEntry = false
             tf.autocapitalizationType = .none
             tf.autocorrectionType = .no
-            tf.text = TranslationPreferences.deepLAPIKey
+            tf.keyboardType = .asciiCapable
+            // One key per line (or comma-separated). Pasting multi-line works.
+            tf.text = TranslationPreferences.deepLKeysEditorText
         }
         alert.addAction(UIAlertAction(title: "common.cancel".localized, style: .cancel))
         alert.addAction(UIAlertAction(
             title: "settings.translation.deepL.clear".localized,
             style: .destructive
         ) { [weak self] _ in
-            TranslationPreferences.deepLAPIKey = nil
+            TranslationPreferences.deepLAPIKeys = []
             self?.reloadAllSettings()
         })
         alert.addAction(UIAlertAction(title: "common.save".localized, style: .default) { [weak self] _ in
             let text = alert.textFields?.first?.text
-            TranslationPreferences.deepLAPIKey = text
+            TranslationPreferences.setDeepLKeys(fromEditorText: text)
             self?.reloadAllSettings()
         })
         present(alert, animated: true)

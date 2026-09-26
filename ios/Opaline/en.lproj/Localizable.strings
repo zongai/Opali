@@ -636,9 +636,10 @@
 "settings.footer.defaultSpeed" = "Applied when opening a video. You can still change speed in the player.";
 "settings.footer.translationTarget" = "Used for title, comments, and captions. System follows the app language.";
 
-"settings.row.translationDeepLKey" = "DeepL API Key";
-"settings.footer.translationDeepLKey" = "Optional. Free keys end with :fx. Stored on this device only.";
-"settings.translation.deepL.placeholder" = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx";
+"settings.row.translationDeepLKey" = "DeepL API Keys";
+"settings.footer.translationDeepLKey" = "Optional. One key per line (or comma-separated). Free keys end with :fx. Keys rotate on quota/rate-limit. Stored on this device only.";
+"settings.translation.deepL.placeholder" = "key1:fx
+key2:fx";
 "settings.translation.deepL.clear" = "Clear Key";
 "settings.translation.deepL.notSet" = "Not set";
 "player.translate.error.empty" = "Nothing to translate.";
@@ -658,3 +659,4 @@
 "video.menu.snooze" = "Snooze video";
 "video.menu.feedbackGeneric" = "Hide";
 "video.menu.feedbackFailed" = "Couldn't update recommendations";
+"settings.translation.deepL.keyCount" = "%d keys";
