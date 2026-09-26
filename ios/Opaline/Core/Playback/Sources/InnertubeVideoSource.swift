@@ -287,7 +287,11 @@ private extension InnertubeVideoSource {
 
 extension InnertubeVideoSource {
     static func qualities(from info: DirectPlaybackInfo) -> [VideoQuality] { [] }
-    static func codecsLine(from info: DirectPlaybackInfo) -> String? { nil }
+    static func codecsLine(
+        info: DirectPlaybackInfo?,
+        quality: VideoQuality?,
+        audio: DashFormatInfo?
+    ) -> String? { nil }
 
     func audioFormat(in info: DirectPlaybackInfo) -> DashFormatInfo? {
         info.dashAudioFormat
