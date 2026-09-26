@@ -19,7 +19,7 @@ extension VideoActionMenu {
         anchor: UIView
     ) {
         // Playlist picker not present in source tree; no-op for CI build.
-        AppLog.info("presentPlaylistPicker stub: \(video.id)")
+        AppLog.log("Stub", "presentPlaylistPicker stub: \(video.id)")
     }
 
     static func removeFromPlaylist(
@@ -28,7 +28,7 @@ extension VideoActionMenu {
         from presenter: UIViewController,
         onRemoved: (() -> Void)?
     ) {
-        AppLog.info("removeFromPlaylist stub: \(video.id) from \(playlist.id)")
+        AppLog.log("Stub", "removeFromPlaylist stub: \(video.id) from \(playlist.id)")
         onRemoved?()
     }
 }

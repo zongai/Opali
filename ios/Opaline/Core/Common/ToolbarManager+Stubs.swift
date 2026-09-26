@@ -5,11 +5,11 @@ import UIKit
 extension ToolbarManager {
     func showSignedInSheet() {
         // Account / profile sheet missing from source snapshot.
-        AppLog.info("showSignedInSheet stub")
+        AppLog.log("Stub", "showSignedInSheet stub")
     }
 
     func showSignedOutSheet() {
         // Sign-in sheet missing from source snapshot.
-        AppLog.info("showSignedOutSheet stub")
+        AppLog.log("Stub", "showSignedOutSheet stub")
     }
 }

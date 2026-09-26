@@ -139,3 +139,28 @@ final class SignatureTimestampService {
         return nil
     }
 }
+
+// MARK: - TV helpers (missing from incomplete source)
+
+extension SignatureTimestampService {
+    /// TV client version scraped from youtube.com/tv (or pinned fallback).
+    static var tvClientVersion: String? {
+        UserDefaults.standard.string(forKey: "SignatureTimestamp.tvClientVersion")
+    }
+
+    /// Async TV signatureTimestamp — falls back to shared cached STS.
+    func tvSignatureTimestamp(completion: @escaping (Int?) -> Void) {
+        fetch(completion: completion)
+    }
+
+    /// Player JS path for TV n-solver.
+    func tvPlayerPath(completion: @escaping (String?) -> Void) {
+        if let path = jsPath {
+            completion(path)
+            return
+        }
+        fetch { _ in
+            completion(self.jsPath)
+        }
+    }
+}
