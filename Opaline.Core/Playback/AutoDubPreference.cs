@@ -48,14 +48,12 @@ public static class AutoDubPreference
         if (IgnoreAiDubs)
             candidates = candidates.Where(a => a.AudioTrackId is null || !a.AudioTrackId.Contains(".10"));
 
-        // Prefer track whose id/name matches preferred language
         var match = candidates
             .Where(a => TrackMatches(a, want))
             .OrderByDescending(a => a.Bitrate ?? 0)
             .FirstOrDefault();
         if (match is not null) return match;
 
-        // Original already preferred → default track
         if (!string.IsNullOrEmpty(originalLanguageHint)
             && BaseCode(originalLanguageHint) == want)
         {
@@ -75,7 +73,6 @@ public static class AutoDubPreference
             return true;
         if (name.StartsWith(want) || name.Contains($"({want})") || name.Contains($"{want}-"))
             return true;
-        // common display names
         if (want == "zh" && (name.Contains("chinese") || name.Contains("中文") || name.Contains("国语") || name.Contains("普通话")))
             return true;
         if (want == "en" && name.Contains("english"))
@@ -88,6 +85,21 @@ public static class AutoDubPreference
             return true;
         return false;
     }
-}
 
-// need StreamInfo import
+    /// <summary>
+    /// Dub to start on, or null to keep default — iOS AutoDubPreference.autoDubTrack.
+    /// </summary>
+    public static AudioTrackInfo? AutoDubTrack(IReadOnlyList<AudioTrackInfo> tracks)
+    {
+        if (!IsEnabled || tracks.Count <= 1) return null;
+        var original = tracks.FirstOrDefault(t => t.IsOriginal);
+        if (original is null) return null;
+        var language = EffectiveLanguageCode;
+        if (original.LanguageCode == language) return null;
+
+        var dubs = tracks.Where(t => !t.IsOriginal && t.LanguageCode == language).ToList();
+        var human = dubs.FirstOrDefault(t => !t.IsAutoDubbed);
+        if (human is not null) return human;
+        return IgnoreAiDubs ? null : dubs.FirstOrDefault();
+    }
+}
