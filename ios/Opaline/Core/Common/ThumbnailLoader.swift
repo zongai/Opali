@@ -9,6 +9,8 @@ struct ThumbnailLoadResult {
 
 enum ThumbnailLoaderError: Error {
     case unavailable
+    case cancelled
+    case notFound
 }
 
 final class ThumbnailLoader {
@@ -202,5 +204,81 @@ final class ThumbnailLoader {
             prefetchTokens[identity] = nil
         }
         prefetchLock.unlock()
+    }
+}
+
+
+// MARK: - Network load (recovered stub)
+
+extension ThumbnailLoader {
+    func loadCandidate(
+        request: ThumbnailRequest,
+        index: Int,
+        token: CancellationToken,
+        completion: @escaping (Result<ThumbnailLoadResult, Error>) -> Void
+    ) {
+        if token.isCancelled {
+            completion(.failure(ThumbnailLoaderError.cancelled))
+            return
+        }
+        guard index < request.candidates.count else {
+            completion(.failure(ThumbnailLoaderError.notFound))
+            return
+        }
+        let url = request.candidates[index]
+        let key = request.cacheKey(for: url)
+
+        if cachingEnabled, let image = memoryCache.object(forKey: key) {
+            completion(.success(ThumbnailLoadResult(
+                image: image,
+                sourceURL: url,
+                pixelWidth: image.cgImage?.width ?? 0,
+                pixelHeight: image.cgImage?.height ?? 0
+            )))
+            return
+        }
+
+        if cachingEnabled, let fileURL = diskCache.fileURL(for: url),
+           let data = try? Data(contentsOf: fileURL),
+           let image = UIImage(data: data) {
+            memoryCache.setObject(image, forKey: key, cost: data.count)
+            completion(.success(ThumbnailLoadResult(
+                image: image,
+                sourceURL: url,
+                pixelWidth: image.cgImage?.width ?? 0,
+                pixelHeight: image.cgImage?.height ?? 0
+            )))
+            return
+        }
+
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 15
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, error in
+            self?.decodeQueue.async {
+                if token.isCancelled {
+                    completion(.failure(ThumbnailLoaderError.cancelled))
+                    return
+                }
+                guard error == nil, let data = data, let image = UIImage(data: data) else {
+                    self?.loadCandidate(
+                        request: request,
+                        index: index + 1,
+                        token: token,
+                        completion: completion
+                    )
+                    return
+                }
+                if self?.cachingEnabled == true {
+                    self?.memoryCache.setObject(image, forKey: key, cost: data.count)
+                    self?.diskCache.store(data: data, for: url)
+                }
+                completion(.success(ThumbnailLoadResult(
+                    image: image,
+                    sourceURL: url,
+                    pixelWidth: image.cgImage?.width ?? 0,
+                    pixelHeight: image.cgImage?.height ?? 0
+                )))
+            }
+        }.resume()
     }
 }
