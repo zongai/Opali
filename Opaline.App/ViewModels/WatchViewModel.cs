@@ -8,6 +8,7 @@ using Opaline.Core.Services;
 using Opaline.Core.Services.Ryd;
 using Opaline.Core.Services.SponsorBlock;
 using Opaline.Core.Storage;
+using Opaline.Core.Services.Translation;
 
 namespace Opaline.App.ViewModels;
 
@@ -19,6 +20,7 @@ public partial class WatchViewModel : ObservableObject
     private readonly ReturnYouTubeDislikeService _ryd;
     private readonly WatchHistoryStore _history;
     private readonly IDownloadService _downloads;
+    private readonly TranslationService _translator;
 
     public WatchViewModel(
         IYouTubeService yt,
@@ -26,7 +28,8 @@ public partial class WatchViewModel : ObservableObject
         SponsorBlockService sponsorBlock,
         ReturnYouTubeDislikeService ryd,
         WatchHistoryStore history,
-        IDownloadService downloads)
+        IDownloadService downloads,
+        TranslationService translator)
     {
         _yt = yt;
         _playback = playback;
@@ -34,6 +37,7 @@ public partial class WatchViewModel : ObservableObject
         _ryd = ryd;
         _history = history;
         _downloads = downloads;
+        _translator = translator;
     }
 
     [ObservableProperty] private Video? video;
@@ -61,6 +65,12 @@ public partial class WatchViewModel : ObservableObject
     [ObservableProperty] private double downloadProgress;
     [ObservableProperty] private string? downloadStatus;
     [ObservableProperty] private bool isDownloading;
+    [ObservableProperty] private string targetLanguage = "zh-CN";
+    [ObservableProperty] private string? translatedTitle;
+    [ObservableProperty] private string? translatedDescription;
+    [ObservableProperty] private string? translatedCaption;
+    [ObservableProperty] private bool isTranslating;
+    [ObservableProperty] private string? translateStatus;
 
     public ObservableCollection<SponsorBlockSegment> Segments { get; } = new();
     public ObservableCollection<CommentThread> Comments { get; } = new();
@@ -303,6 +313,89 @@ public partial class WatchViewModel : ObservableObject
             .Take(80);
         var text = string.Join(" ", lines);
         return text.Length <= max ? text : text[..max] + "…";
+    }
+
+
+    [RelayCommand]
+    public async Task TranslateTitleAsync()
+    {
+        if (Video is null) return;
+        IsTranslating = true;
+        TranslateStatus = "翻译标题…";
+        try
+        {
+            TranslatedTitle = await _translator.TranslateAsync(Video.Title, TargetLanguage);
+            if (!string.IsNullOrEmpty(Video.Description))
+                TranslatedDescription = await _translator.TranslateAsync(
+                    Video.Description.Length > 2000 ? Video.Description[..2000] : Video.Description,
+                    TargetLanguage);
+            TranslateStatus = "标题已翻译";
+            DisplayTitle = TranslatedTitle ?? DisplayTitle;
+        }
+        catch (Exception ex)
+        {
+            TranslateStatus = $"翻译失败: {ex.Message}";
+        }
+        finally { IsTranslating = false; }
+    }
+
+    [RelayCommand]
+    public async Task TranslateCommentsAsync()
+    {
+        if (Comments.Count == 0) return;
+        IsTranslating = true;
+        TranslateStatus = "翻译评论…";
+        try
+        {
+            var texts = Comments.Select(c => c.Text).ToList();
+            var translated = await _translator.TranslateManyAsync(texts, TargetLanguage);
+            for (int i = 0; i < Comments.Count && i < translated.Count; i++)
+            {
+                var c = Comments[i];
+                Comments[i] = new CommentThread
+                {
+                    Id = c.Id,
+                    AuthorName = c.AuthorName,
+                    AuthorAvatarUrl = c.AuthorAvatarUrl,
+                    Text = translated[i],
+                    LikeCount = c.LikeCount,
+                    PublishedAt = c.PublishedAt,
+                    PublishedTime = c.PublishedTime,
+                    ReplyCount = c.ReplyCount,
+                    Replies = c.Replies
+                };
+            }
+            TranslateStatus = $"已翻译 {translated.Count} 条评论";
+        }
+        catch (Exception ex)
+        {
+            TranslateStatus = $"评论翻译失败: {ex.Message}";
+        }
+        finally { IsTranslating = false; }
+    }
+
+    [RelayCommand]
+    public async Task TranslateCaptionAsync()
+    {
+        var raw = CaptionText;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            TranslateStatus = "请先选择字幕轨道";
+            return;
+        }
+        IsTranslating = true;
+        TranslateStatus = "翻译字幕…";
+        try
+        {
+            TranslatedCaption = await _translator.TranslateCaptionAsync(raw, TargetLanguage);
+            CaptionText = TranslatedCaption;
+            TranslateStatus = "字幕已翻译";
+        }
+        catch (Exception ex)
+        {
+            TranslateStatus = $"字幕翻译失败: {ex.Message}";
+        }
+        finally { IsTranslating = false; }
     }
 
     private static string FormatCount(int n) => n switch

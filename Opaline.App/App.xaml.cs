@@ -6,6 +6,7 @@ using Opaline.Core.Api;
 using Opaline.Core.Auth;
 using Opaline.Core.Playback;
 using Opaline.Core.Services;
+using Opaline.Core.Services.Translation;
 using Opaline.Core.Services.Ryd;
 using Opaline.Core.Services.SponsorBlock;
 using Opaline.Core.Storage;
@@ -83,6 +84,7 @@ public partial class App : Application
         sc.AddSingleton<SponsorBlockService>();
         sc.AddSingleton<ReturnYouTubeDislikeService>();
         sc.AddSingleton<IDownloadService, DownloadService>();
+        sc.AddSingleton<TranslationService>();
         sc.AddSingleton<WatchHistoryStore>();
         sc.AddSingleton<INavigationService, NavigationService>();
         sc.AddSingleton<IThemeService, ThemeService>();

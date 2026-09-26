@@ -102,6 +102,37 @@
                         </ComboBox>
                     </StackPanel>
 
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ComboBox Header="目标语言" Width="140" x:Name="LangCombo"
+                                  SelectionChanged="LangCombo_SelectionChanged"
+                                  AutomationProperties.AutomationId="WatchTargetLang">
+                            <ComboBoxItem Content="中文（简体）" Tag="zh-CN" IsSelected="True" />
+                            <ComboBoxItem Content="中文（繁體）" Tag="zh-TW" />
+                            <ComboBoxItem Content="English" Tag="en" />
+                            <ComboBoxItem Content="日本語" Tag="ja" />
+                            <ComboBoxItem Content="한국어" Tag="ko" />
+                            <ComboBoxItem Content="Español" Tag="es" />
+                            <ComboBoxItem Content="Français" Tag="fr" />
+                            <ComboBoxItem Content="Deutsch" Tag="de" />
+                            <ComboBoxItem Content="Русский" Tag="ru" />
+                            <ComboBoxItem Content="Tiếng Việt" Tag="vi" />
+                        </ComboBox>
+                        <Button Content="翻译标题"
+                                Command="{x:Bind ViewModel.TranslateTitleCommand}"
+                                AutomationProperties.AutomationId="WatchTranslateTitle" />
+                        <Button Content="翻译评论"
+                                Command="{x:Bind ViewModel.TranslateCommentsCommand}"
+                                AutomationProperties.AutomationId="WatchTranslateComments" />
+                        <Button Content="翻译字幕"
+                                Command="{x:Bind ViewModel.TranslateCaptionCommand}"
+                                AutomationProperties.AutomationId="WatchTranslateCaption" />
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.TranslateStatus, Mode=OneWay}"
+                               Opacity="0.75" TextWrapping="Wrap" />
+                    <TextBlock Text="{x:Bind ViewModel.TranslatedTitle, Mode=OneWay}"
+                               Style="{StaticResource BodyStrongTextBlockStyle}"
+                               TextWrapping="WrapWholeWords" />
+
                     <TextBlock Text="{x:Bind ViewModel.DownloadStatus, Mode=OneWay}"
                                Opacity="0.7" TextWrapping="Wrap" />
                     <ProgressBar Value="{x:Bind ViewModel.DownloadProgress, Mode=OneWay}"

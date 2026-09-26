@@ -1,0 +1,97 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Windows (WinUI)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore Opaline.Windows.sln
+
+      - name: Build App (self-contained)
+        run: |
+          msbuild Opaline.App\Opaline.App.csproj /restore /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:WindowsAppSDKSelfContained=true /p:SelfContained=true /p:PublishSingleFile=false /p:WindowsPackageType=None /p:GenerateAppxPackageOnBuild=false /m
+
+      - name: Stage artifact
+        shell: pwsh
+        run: |
+          $out = "Opaline-Windows-x64"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $bin = Get-ChildItem -Path "Opaline.App\bin" -Recurse -Filter "Opaline.App.exe" | Select-Object -First 1
+          if (-not $bin) { throw "Opaline.App.exe not found" }
+          $dir = $bin.Directory.FullName
+          Copy-Item -Path (Join-Path $dir "*") -Destination $out -Recurse -Force
+          if (Test-Path "Opaline.App\run-opaline.cmd") { Copy-Item "Opaline.App\run-opaline.cmd" $out -Force }
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Opaline-Windows-x64
+          path: Opaline-Windows-x64
+          if-no-files-found: error
+
+  ios:
+    name: iOS (Xcode)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show iOS tree
+        run: |
+          ls -la ios || true
+          ls -la ios/Opaline.xcodeproj || true
+          test -f ios/Opaline.xcodeproj/project.pbxproj
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Build iOS (simulator, no codesign)
+        working-directory: ios
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Opaline.xcodeproj \
+            -scheme Opaline \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | xcpretty || xcodebuild \
+            -project Opaline.xcodeproj \
+            -scheme Opaline \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Upload iOS build log note
+        if: always()
+        run: echo "iOS job finished" > ios-build-status.txt
+
+      - name: Upload iOS status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Opaline-iOS-status
+          path: ios-build-status.txt

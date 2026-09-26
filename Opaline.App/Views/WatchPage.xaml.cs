@@ -122,6 +122,12 @@ public sealed partial class WatchPage : Page
             await ViewModel.SelectCaptionAsync(null);
     }
 
+    private void LangCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox { SelectedItem: ComboBoxItem item } && item.Tag is string tag)
+            ViewModel.TargetLanguage = tag;
+    }
+
     private void StartSkipMonitor()
     {
         _skipTimer?.Stop();
