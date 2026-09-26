@@ -12,13 +12,27 @@
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0" Background="Black">
-            <MediaPlayerElement
-                x:Name="Player"
-                AreTransportControlsEnabled="True"
-                AutoPlay="True"
-                Stretch="Uniform"
-                AutomationProperties.AutomationId="WatchPlayer"
-                AutomationProperties.Name="Video player" />
+                                <Grid>
+                        <MediaPlayerElement x:Name="Player"
+                                            AreTransportControlsEnabled="True"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch"
+                                            Stretch="Uniform" />
+                        <TextBlock x:Name="SubtitleOverlay"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Bottom"
+                                   Margin="24,0,24,56"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="White"
+                                   IsHitTestVisible="False">
+                            <TextBlock.Shadow>
+                                <ThemeShadow />
+                            </TextBlock.Shadow>
+                        </TextBlock>
+                    </Grid>
             <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
                           Width="56" Height="56"
                           HorizontalAlignment="Center" VerticalAlignment="Center" />

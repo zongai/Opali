@@ -10,17 +10,17 @@ public sealed class PlaybackService
 
     public Task<ResolvedStream?> ResolveAsync(
         WatchPage page,
-        int maxHeight = 1080,
+        int maxHeight = 2160,
         CancellationToken ct = default)
         => _resolver.ResolveAsync(page, maxHeight, preferAdaptive: false, ct);
 
-    public StreamInfo? SelectBestProgressive(WatchPage page, int maxHeight = 1080)
+    public StreamInfo? SelectBestProgressive(WatchPage page, int maxHeight = 2160)
         => StreamUrlResolver.SelectBestProgressive(page, maxHeight);
 
-    public (StreamInfo? Video, StreamInfo? Audio) SelectBestAdaptive(WatchPage page, int maxHeight = 1080)
+    public (StreamInfo? Video, StreamInfo? Audio) SelectBestAdaptive(WatchPage page, int maxHeight = 2160)
         => StreamUrlResolver.SelectBestAdaptive(page, maxHeight);
 
-    public string? ResolvePlayableUrl(WatchPage page, int maxHeight = 1080)
+    public string? ResolvePlayableUrl(WatchPage page, int maxHeight = 2160)
     {
         var progressive = SelectBestProgressive(page, maxHeight);
         if (progressive is not null) return progressive.Url;

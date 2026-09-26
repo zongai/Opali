@@ -35,7 +35,7 @@ public sealed class StreamUrlResolver
 
     public async Task<ResolvedStream?> ResolveAsync(
         WatchPage page,
-        int maxHeight = 1080,
+        int maxHeight = 2160,
         bool preferAdaptive = false,
         CancellationToken ct = default)
     {
@@ -305,7 +305,7 @@ public sealed class StreamUrlResolver
         return dict;
     }
 
-    public static StreamInfo? SelectBestProgressive(WatchPage page, int maxHeight = 1080)
+    public static StreamInfo? SelectBestProgressive(WatchPage page, int maxHeight = 2160)
         => page.Streams
             .Where(s => !s.IsAudioOnly && !s.IsVideoOnly && !string.IsNullOrEmpty(s.Url))
             .Where(s => s.Height is null || s.Height <= maxHeight)
@@ -314,7 +314,7 @@ public sealed class StreamUrlResolver
             .FirstOrDefault();
 
     public static (StreamInfo? Video, StreamInfo? Audio) SelectBestAdaptive(
-        WatchPage page, int maxHeight = 1080, string? preferredAudioTrackId = null)
+        WatchPage page, int maxHeight = 2160, string? preferredAudioTrackId = null)
     {
         // Video ladder: admit av01 only when Av1Support allows (iOS AV1Support)
         var videoCandidates = page.Streams

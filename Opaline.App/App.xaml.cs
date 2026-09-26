@@ -18,6 +18,7 @@ namespace Opaline.App;
 public partial class App : Application
 {
     private Window? _window;
+    public static Window? MainWindow { get; private set; }
     public static IServiceProvider Services { get; private set; } = null!;
 
     public App()
@@ -107,6 +108,7 @@ public partial class App : Application
         try
         {
             _window = new MainWindow();
+            MainWindow = _window;
             _window.Activate();
             _ = Av1HardwareProbe.ProbeAsync();
 

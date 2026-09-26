@@ -1,11 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
 using Opaline.App.Services;
 using Opaline.App.ViewModels;
 using Opaline.Core.Models;
 using Opaline.Core.Services.SponsorBlock;
+using Windows.System;
 
 namespace Opaline.App.Views;
 
@@ -16,12 +19,14 @@ public sealed partial class WatchPage : Page
     private DispatcherTimer? _skipTimer;
     private bool _isFullWindow;
     private bool _captionsBound;
+    private OverlappedPresenterState? _savedPresenterState;
 
     public WatchPage()
     {
         ViewModel = App.Services.GetRequiredService<WatchViewModel>();
         InitializeComponent();
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+        KeyDown += WatchPage_KeyDown;
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
@@ -68,6 +73,9 @@ public sealed partial class WatchPage : Page
             }
         }
 
+        if (e.PropertyName == nameof(WatchViewModel.CaptionCues))
+            UpdateSubtitleOverlay();
+
         if (e.PropertyName != nameof(WatchViewModel.PlayableUrl)) return;
         if (string.IsNullOrEmpty(ViewModel.PlayableUrl) || _player is null) return;
 
@@ -75,30 +83,95 @@ public sealed partial class WatchPage : Page
         {
             _player.AttachSabr(ViewModel.SabrController);
             await _player.LoadAsync(ViewModel.PlayableUrl!, ViewModel.AudioUrl, ViewModel.IsManifest);
+            _player.Play();
             StartSkipMonitor();
-            AppLog.Info("WatchPage", "playback started");
         }
         catch (Exception ex)
         {
             ViewModel.ErrorMessage = $"Playback error: {ex.Message}";
-            CrashLog.Write("WatchPage.Playback", ex);
+            CrashLog.Write("WatchPage.LoadMedia", ex);
+        }
+    }
+
+    private void WatchPage_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Escape && _isFullWindow)
+        {
+            ExitFullWindow();
+            e.Handled = true;
+        }
+        else if (e.Key == VirtualKey.F && !_isFullWindow)
+        {
+            EnterFullWindow();
+            e.Handled = true;
         }
     }
 
     private void Fullscreen_Click(object sender, RoutedEventArgs e)
     {
+        if (_isFullWindow) ExitFullWindow();
+        else EnterFullWindow();
+    }
+
+    private void EnterFullWindow()
+    {
         try
         {
-            Player.IsFullWindow = !Player.IsFullWindow;
-            _isFullWindow = Player.IsFullWindow;
+            var window = App.MainWindow;
+            if (window is null)
+            {
+                // Fallback: MediaPlayerElement full window
+                Player.IsFullWindow = true;
+                _isFullWindow = true;
+                return;
+            }
+
+            var presenter = window.AppWindow.Presenter as OverlappedPresenter;
+            if (presenter is not null)
+                _savedPresenterState = presenter.State;
+
+            window.AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
+            _isFullWindow = true;
+
+            // Prefer filling the window with the player
+            try { Player.IsFullWindow = true; } catch { }
+            AppLog.Info("WatchPage", "entered fullscreen");
         }
-        catch (Exception ex) { AppLog.Error("WatchPage", "fullscreen failed", ex); }
+        catch (Exception ex)
+        {
+            AppLog.Error("WatchPage", "fullscreen failed", ex);
+            try
+            {
+                Player.IsFullWindow = true;
+                _isFullWindow = true;
+            }
+            catch { /* ignore */ }
+        }
     }
 
     private void ExitFullWindow()
     {
-        try { Player.IsFullWindow = false; } catch { }
-        _isFullWindow = false;
+        try
+        {
+            try { Player.IsFullWindow = false; } catch { }
+            var window = App.MainWindow;
+            if (window is not null)
+            {
+                window.AppWindow.SetPresenter(AppWindowPresenterKind.Overlapped);
+                if (_savedPresenterState == OverlappedPresenterState.Maximized
+                    && window.AppWindow.Presenter is OverlappedPresenter op)
+                {
+                    op.Maximize();
+                }
+            }
+            _isFullWindow = false;
+            AppLog.Info("WatchPage", "exited fullscreen");
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("WatchPage.ExitFullWindow", ex);
+            _isFullWindow = false;
+        }
     }
 
     private void Channel_Click(object sender, RoutedEventArgs e)
@@ -121,6 +194,7 @@ public sealed partial class WatchPage : Page
             await ViewModel.SelectCaptionAsync(track);
         else
             await ViewModel.SelectCaptionAsync(null);
+        UpdateSubtitleOverlay();
     }
 
     private void LangCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -132,7 +206,7 @@ public sealed partial class WatchPage : Page
     private void StartSkipMonitor()
     {
         _skipTimer?.Stop();
-        _skipTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+        _skipTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _skipTimer.Tick += (_, _) =>
         {
             if (_player is null) return;
@@ -146,10 +220,34 @@ public sealed partial class WatchPage : Page
                     SkipBar.Message = $"Skipped {seg.Category.DisplayName()} ({seg.StartTime:0}s–{seg.EndTime:0}s)";
                     SkipBar.IsOpen = true;
                 }
+                UpdateSubtitleOverlay(pos);
             }
             catch (Exception ex) { CrashLog.Write("WatchPage.SkipMonitor", ex); }
         };
         _skipTimer.Start();
+    }
+
+    private void UpdateSubtitleOverlay(double? positionSeconds = null)
+    {
+        try
+        {
+            var cues = ViewModel.CaptionCues;
+            if (cues is null || cues.Count == 0)
+            {
+                SubtitleOverlay.Text = "";
+                return;
+            }
+            var pos = positionSeconds
+                ?? _player?.VideoPlayer.Position.TotalSeconds
+                ?? 0;
+            var t = TimeSpan.FromSeconds(pos);
+            var cue = cues.FirstOrDefault(c => t >= c.Start && t <= c.End);
+            SubtitleOverlay.Text = cue?.Text ?? "";
+        }
+        catch
+        {
+            /* ignore overlay errors */
+        }
     }
 
     private async void PlaylistPicker_ItemClick(object sender, ItemClickEventArgs e)

@@ -23,6 +23,7 @@ public partial class WatchViewModel : ObservableObject
     private readonly IDownloadService _downloads;
     private readonly PlaybackQueue _queue;
     private readonly TranslationService _translator;
+    private readonly StreamUrlResolver _resolver;
 
     public WatchViewModel(
         IYouTubeService yt,
@@ -32,7 +33,8 @@ public partial class WatchViewModel : ObservableObject
         WatchHistoryStore history,
         IDownloadService downloads,
         TranslationService translator,
-        PlaybackQueue queue)
+        PlaybackQueue queue,
+        StreamUrlResolver resolver)
     {
         _yt = yt;
         _playback = playback;
@@ -42,6 +44,7 @@ public partial class WatchViewModel : ObservableObject
         _downloads = downloads;
         _translator = translator;
         _queue = queue;
+        _resolver = resolver;
     }
 
     [ObservableProperty] private Video? video;
@@ -66,6 +69,7 @@ public partial class WatchViewModel : ObservableObject
     [ObservableProperty] private bool commentsLoading;
     [ObservableProperty] private string? commentsError;
     [ObservableProperty] private string? captionText;
+    [ObservableProperty] private IReadOnlyList<SubtitleCue>? captionCues;
     [ObservableProperty] private string? selectedCaptionName;
     [ObservableProperty] private string? selectedQualityName;
     [ObservableProperty] private double downloadProgress;
@@ -140,6 +144,7 @@ public partial class WatchViewModel : ObservableObject
         Captions.Clear();
         Qualities.Clear();
         CaptionText = null;
+        CaptionCues = null;
 
         try
         {
@@ -177,7 +182,7 @@ public partial class WatchViewModel : ObservableObject
             if (Qualities.Count > 0)
                 SelectedQualityName = Qualities[0].DisplayLabel;
 
-            _resolved = await _playback.ResolveAsync(_page);
+            _resolved = await _playback.ResolveAsync(_page, maxHeight: 2160);
             SabrController = _resolved?.Sabr;
             SabrController?.StartPump();
             if (_resolved is not null)
@@ -333,26 +338,61 @@ public partial class WatchViewModel : ObservableObject
         if (track is null)
         {
             CaptionText = null;
+            CaptionCues = null;
             SelectedCaptionName = "Off";
             return;
         }
         SelectedCaptionName = track.DisplayName;
         var raw = await _yt.FetchCaptionAsync(track.BaseUrl);
-        CaptionText = raw is null ? "(failed to load captions)" : TruncateCaption(raw, 4000);
+        if (raw is null)
+        {
+            CaptionText = "(failed to load captions)";
+            CaptionCues = null;
+            return;
+        }
+        CaptionCues = VttCueParser.Parse(raw);
+        CaptionText = TruncateCaption(raw, 4000);
     }
 
     [RelayCommand]
     public async Task SelectQualityAsync(StreamInfo? stream)
     {
-        if (stream is null || string.IsNullOrEmpty(stream.Url)) return;
-        SelectedQualityName = stream.DisplayLabel;
-        // Direct URL may still need signature resolve — use raw when progressive-like
-        PlayableUrl = stream.Url;
-        AudioUrl = null;
-        IsManifest = false;
-        QualityLabel = stream.DisplayLabel;
-        StreamKindLabel = stream.IsVideoOnly ? "Video only" : "Selected";
-        await Task.CompletedTask;
+        if (stream is null || _page is null) return;
+        try
+        {
+            SelectedQualityName = stream.DisplayLabel;
+            QualityLabel = stream.DisplayLabel;
+            // Resolve signatures (s/n) and pair with best audio when adaptive
+            var videoUrl = await _resolver.FinalizeUrlAsync(
+                stream.Url, _page.Video.Id, stream.SigChallenge, stream.SigParam).ConfigureAwait(true);
+            if (string.IsNullOrEmpty(videoUrl))
+            {
+                ErrorMessage = "Could not resolve stream URL for " + stream.DisplayLabel;
+                return;
+            }
+            string? audioUrl = null;
+            if (stream.IsVideoOnly || stream.IsAudioOnly)
+            {
+                var (_, audio) = StreamUrlResolver.SelectBestAdaptive(_page, maxHeight: 2160);
+                if (audio is not null)
+                    audioUrl = await _resolver.FinalizeUrlAsync(
+                        audio.Url, _page.Video.Id, audio.SigChallenge, audio.SigParam).ConfigureAwait(true);
+            }
+            // Progressive (muxed) streams need no separate audio
+            if (!stream.IsVideoOnly && !stream.IsAudioOnly)
+                audioUrl = null;
+
+            PlayableUrl = videoUrl;
+            AudioUrl = audioUrl;
+            IsManifest = false;
+            StreamKindLabel = stream.IsVideoOnly ? "Adaptive (A+V)" : "Selected";
+            AppLog.Info("Watch", $"quality -> {stream.DisplayLabel} dual={audioUrl is not null}");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Quality switch failed: {ex.Message}";
+            AppLog.Error("Watch", "SelectQuality", ex);
+        }
     }
 
     [RelayCommand]

@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
 using Opaline.Core.Auth;
@@ -83,10 +84,23 @@ public sealed partial class InnertubeClient
     public async Task<CommentsPage> GetCommentsAsync(string videoId, string? continuation = null, CancellationToken ct = default)
     {
         continuation ??= BuildCommentsContinuation(videoId, sortBy: 0);
-        var body = BuildContext(new { continuation }, ClientIdentity.Web);
-        var json = await PostAsync("next", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
-        CaptureVisitorData(json);
-        return ParseComments(json);
+        // Prefer WEB (matches desktop comment panel); fall back to ANDROID if empty.
+        foreach (var client in new[] { ClientIdentity.Web, ClientIdentity.Android })
+        {
+            var body = BuildContext(new { continuation }, client);
+            var json = await PostAsync("next", body, client, sendAuth: false, ct).ConfigureAwait(false);
+            CaptureVisitorData(json);
+            var page = ParseComments(json);
+            if (page.Comments.Count > 0 || !string.IsNullOrEmpty(page.Continuation))
+                return page;
+        }
+        // Last resort: open watch next without synthetic continuation (engagement panels)
+        {
+            var body = BuildContext(new { videoId }, ClientIdentity.Web);
+            var json = await PostAsync("next", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
+            CaptureVisitorData(json);
+            return ParseComments(json);
+        }
     }
 
     /// <summary>Port of iOS InnertubeClient.buildCommentsContinuation (sortBy 0 = top).</summary>
@@ -162,9 +176,8 @@ public sealed partial class InnertubeClient
             ProtoInt32(3, 6),
             ProtoMessage(6, paramsMsg));
 
-        // base64url + percent-encode (iOS base64URLEncoded + percentEncode)
-        var b64 = Convert.ToBase64String(root).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-        return Uri.EscapeDataString(b64);
+        // base64url (YouTube expects unescaped token in JSON body)
+        return Convert.ToBase64String(root).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 
     private static string? FindCommentsContinuation(JsonNode json)
@@ -249,6 +262,49 @@ public sealed partial class InnertubeClient
             }
         }
         Walk(json);
+        if (list.Count == 0)
+        {
+            // Flat commentRenderer nodes (some clients)
+            void WalkFlat(JsonNode? n)
+            {
+                if (n is null) return;
+                if (n is JsonObject obj)
+                {
+                    if (obj.TryGetPropertyValue("commentRenderer", out var c) && c is not null
+                        && !obj.ContainsKey("commentThreadRenderer"))
+                    {
+                        var id = c["commentId"]?.GetValue<string>() ?? Guid.NewGuid().ToString("N");
+                        if (list.Any(x => x.Id == id)) { }
+                        else
+                        {
+                            var runs = c["contentText"]?["runs"] as JsonArray;
+                            var text = runs is null
+                                ? (c["contentText"]?["simpleText"]?.GetValue<string>() ?? "")
+                                : string.Concat(runs.Select(r => r?["text"]?.GetValue<string>() ?? ""));
+                            var author = c["authorText"]?["simpleText"]?.GetValue<string>()
+                                      ?? c["authorText"]?["runs"]?.AsArray()?.FirstOrDefault()?["text"]?.GetValue<string>()
+                                      ?? "";
+                            list.Add(new CommentThread
+                            {
+                                Id = id,
+                                AuthorName = author,
+                                Text = text,
+                                PublishedTime = c["publishedTimeText"]?["runs"]?.AsArray()?.FirstOrDefault()?["text"]?.GetValue<string>()
+                                             ?? c["publishedTimeText"]?["simpleText"]?.GetValue<string>(),
+                                LikeCount = 0,
+                                AuthorAvatarUrl = c["authorThumbnail"]?["thumbnails"]?.AsArray()?.LastOrDefault()?["url"]?.GetValue<string>()
+                            });
+                        }
+                    }
+                    foreach (var kv in obj) WalkFlat(kv.Value);
+                }
+                else if (n is JsonArray arr)
+                {
+                    foreach (var c in arr) WalkFlat(c);
+                }
+            }
+            WalkFlat(json);
+        }
         return new CommentsPage
         {
             Comments = list,
