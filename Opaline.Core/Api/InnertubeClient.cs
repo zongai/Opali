@@ -43,16 +43,19 @@ public sealed partial class InnertubeClient
     public async Task<HomeFeed> GetHomeFeedAsync(string? continuation = null, CancellationToken ct = default)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        // Prefer classic browse; modern home often returns Element shells with no videos.
+        // iOS: anonymous → WEB browse; signed-in → TV authenticatedBrowse (device OAuth token)
+        var signedIn = _oauth is not null && _oauth.IsSignedIn;
+        var id = signedIn ? ClientIdentity.Tv : ClientIdentity.Web;
         var body = BuildContext(continuation is null
             ? new { browseId = "FEwhat_to_watch" }
             : new { continuation },
-            ClientIdentity.Web);
+            id);
 
-        var json = await PostAsync("browse", body, ClientIdentity.Web, sendAuth: false, ct).ConfigureAwait(false);
+        var json = await PostAsync("browse", body, id, sendAuth: signedIn, ct).ConfigureAwait(false);
         var feed = ParseHomeFeed(json);
         feed = FilterLongForm(feed);
-        System.Diagnostics.Debug.WriteLine($"[Home] browse items={feed.Items.Count} in {sw.ElapsedMilliseconds}ms");
+        System.Diagnostics.Debug.WriteLine(
+            $"[Home] browse/{id.ClientName} auth={signedIn} items={feed.Items.Count} in {sw.ElapsedMilliseconds}ms");
         if (feed.Items.Count > 0 || continuation is not null)
             return feed;
 
