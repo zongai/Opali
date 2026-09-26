@@ -167,12 +167,7 @@
                                TextWrapping="WrapWholeWords" MaxLines="6" Opacity="0.7"
                                Style="{StaticResource CaptionTextBlockStyle}" />
 
-                    <InfoBar x:Name="SkipBar" Severity="Informational" IsClosable="True" />
-                    <InfoBar IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
-                             Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
-                             Severity="Error" IsClosable="True" />
-                </StackPanel>
-            
+
                     <TextBlock Text="相关 / 本机下载" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,4"/>
                     <TextBlock Text="离线来自本机其他下载" Opacity="0.7"
                                Visibility="{x:Bind ViewModel.ServedOffline, Mode=OneWay}"
@@ -190,7 +185,13 @@
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
-</ScrollViewer>
+
+                    <InfoBar x:Name="SkipBar" Severity="Informational" IsClosable="True" />
+                    <InfoBar IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
+                             Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                             Severity="Error" IsClosable="True" />
+                </StackPanel>
+            </ScrollViewer>
 
             <Grid Grid.Column="1" Padding="8,12,16,16">
                 <Grid.RowDefinitions>
