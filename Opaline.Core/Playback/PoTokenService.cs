@@ -18,6 +18,11 @@ public sealed class PoTokenService
 
     public PoTokenService(HttpClient http) => _http = http;
 
+    /// <summary>Wire WebView2 (or other) local minter from the App layer.</summary>
+    public void AttachBotGuard(IBotGuardMinter minter) => _botGuard.Attach(minter);
+
+    public bool HasLocalBotGuard => _botGuard.IsLocalMintAvailable;
+
     public async Task<string?> FetchAsync(
         string contentBinding,
         string client = "WEB",

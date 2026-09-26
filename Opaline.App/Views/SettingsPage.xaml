@@ -43,6 +43,10 @@
             <TextBox Header="Solver server"
                      Text="{x:Bind ViewModel.SolverBaseUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      AutomationProperties.AutomationId="SettingsSolverUrl" />
+            <TextBlock Text="{x:Bind ViewModel.BotGuardStatus, Mode=OneWay}"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Opacity="0.75"
+                       AutomationProperties.AutomationId="SettingsBotGuardStatus" />
 
             <TextBlock Text="Opaline for Windows v0.3.1" Opacity="0.5" Margin="0,16,0,0" />
             <TextBlock Text="Crash log: crash.log (next to Opaline.App.exe) · Session: %LOCALAPPDATA%\Opaline\oauth.json" Opacity="0.45"

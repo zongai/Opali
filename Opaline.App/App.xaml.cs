@@ -108,6 +108,19 @@ public partial class App : Application
         {
             _window = new MainWindow();
             _window.Activate();
+
+            // WebView2 BotGuard local pot (async; failure → remote /get_pot)
+            try
+            {
+                var dq = _window.DispatcherQueue;
+                var minter = new WebView2BotGuardMinter(dq);
+                Services.GetRequiredService<PoTokenService>().AttachBotGuard(minter);
+                _ = minter.EnsureInitializedAsync();
+            }
+            catch (Exception bgEx)
+            {
+                CrashLog.Write("BotGuard.Attach", bgEx);
+            }
         }
         catch (Exception ex)
         {

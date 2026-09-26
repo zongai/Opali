@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml;
 using Opaline.App.Services;
 using Opaline.Core.Config;
+using Opaline.Core.Playback;
 using Opaline.Core.Services.Ryd;
 using Opaline.Core.Services.SponsorBlock;
 
@@ -16,12 +17,14 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private int selectedThemeIndex;
     [ObservableProperty] private bool sponsorBlockEnabled;
     [ObservableProperty] private bool rydEnabled;
-    [ObservableProperty] private string solverBaseUrl;
+    [ObservableProperty] private string solverBaseUrl = "";
+    [ObservableProperty] private string botGuardStatus = "未初始化";
 
     public SettingsViewModel(
         IThemeService theme,
         SponsorBlockService sb,
-        ReturnYouTubeDislikeService ryd)
+        ReturnYouTubeDislikeService ryd,
+        PoTokenService poToken)
     {
         _theme = theme;
         _sb = sb;
@@ -35,6 +38,9 @@ public partial class SettingsViewModel : ObservableObject
         SponsorBlockEnabled = sb.Enabled;
         RydEnabled = ryd.Enabled;
         SolverBaseUrl = AppUrls.SolverServer.BaseUrl;
+        BotGuardStatus = poToken.HasLocalBotGuard
+            ? "WebView2 BotGuard 已挂载（失败时回退远程 /get_pot）"
+            : "仅远程 /get_pot（启动后将尝试挂载 WebView2）";
     }
 
     partial void OnSelectedThemeIndexChanged(int value)
@@ -50,6 +56,7 @@ public partial class SettingsViewModel : ObservableObject
 
     partial void OnSponsorBlockEnabledChanged(bool value) => _sb.Enabled = value;
     partial void OnRydEnabledChanged(bool value) => _ryd.Enabled = value;
+
     partial void OnSolverBaseUrlChanged(string value)
     {
         if (!string.IsNullOrWhiteSpace(value))
