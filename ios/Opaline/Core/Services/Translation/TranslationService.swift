@@ -242,12 +242,21 @@ final class TranslationService {
         }.resume()
     }
 
+    /// MyMemory expects RFC3066 / ISO codes with hyphen (e.g. `zh-CN`), not `ZHCN`.
+    private static func normalizeMyMemory(_ code: String) -> String {
+        switch code.lowercased() {
+        case "zh", "zh-hans", "zh-cn": return "zh-CN"
+        case "zh-hant", "zh-tw": return "zh-TW"
+        default: return code
+        }
+    }
+
     private func myMemory(
         _ text: String,
         _ target: String,
         _ completion: @escaping (Result<String, Error>) -> Void
     ) {
-        let tl = target.replacingOccurrences(of: "-", with: "")
+        let tl = Self.normalizeMyMemory(target)
         var comps = URLComponents(string: "https://api.mymemory.translated.net/get")!
         comps.queryItems = [
             URLQueryItem(name: "q", value: String(text.prefix(500))),
@@ -271,6 +280,15 @@ final class TranslationService {
                   let rd = obj["responseData"] as? [String: Any],
                   let translated = rd["translatedText"] as? String else {
                 completion(.failure(TranslationError.failed("MyMemory parse")))
+                return
+            }
+            // MyMemory often returns the error string as translatedText when lang is invalid
+            let status = obj["responseStatus"] as? Int ?? 0
+            let upper = translated.uppercased()
+            if status != 200
+                || upper.contains("INVALID TARGET LANGUAGE")
+                || upper.contains("MYMEMORY WARNING") {
+                completion(.failure(TranslationError.failed(translated)))
                 return
             }
             completion(.success(translated))
