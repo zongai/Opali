@@ -76,6 +76,21 @@ jobs:
           which ldid
           ldid 2>&1 | head -2 || true
 
+      - name: Ensure Local.xcconfig
+        working-directory: ios
+        run: |
+          if [ ! -f Config/Local.xcconfig ]; then
+            cp Config/Local.xcconfig.example Config/Local.xcconfig || true
+            cat > Config/Local.xcconfig <<'XC'
+DEVELOPMENT_TEAM =
+CODE_SIGN_IDENTITY =
+CODE_SIGNING_ALLOWED = NO
+CODE_SIGNING_REQUIRED = NO
+PRODUCT_BUNDLE_IDENTIFIER = com.verback.YTLite
+XC
+          fi
+          cat Config/Local.xcconfig
+
       - name: Build unsigned IPA
         working-directory: ios
         env:
