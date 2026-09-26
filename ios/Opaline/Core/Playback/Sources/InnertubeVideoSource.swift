@@ -286,9 +286,8 @@ private extension InnertubeVideoSource {
 // MARK: - Recovered stubs
 
 extension InnertubeVideoSource {
-    static func qualities(from info: DirectPlaybackInfo) -> [VideoQuality] {
-        []
-    }
+    static func qualities(from info: DirectPlaybackInfo) -> [VideoQuality] { [] }
+    static func codecsLine(from info: DirectPlaybackInfo) -> String? { nil }
 
     func audioFormat(in info: DirectPlaybackInfo) -> DashFormatInfo? {
         info.dashAudioFormat
@@ -300,4 +299,12 @@ extension InnertubeVideoSource {
     ) {
         completion(.failure(Self.noStreamError))
     }
+
+    func mintingTokenIfNeeded(completion: @escaping (String?) -> Void) {
+        completion(nil)
+    }
+
+    func releaseDelivery() {}
+
+    func updateAudioTrackState(from info: DirectPlaybackInfo) {}
 }
