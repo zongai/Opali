@@ -40,7 +40,6 @@ jobs:
           $dir = $bin.Directory.FullName
           Copy-Item -Path (Join-Path $dir "*") -Destination $out -Recurse -Force
           if (Test-Path "Opaline.App\run-opaline.cmd") { Copy-Item "Opaline.App\run-opaline.cmd" $out -Force }
-          # Also expose bare exe path for release notes clarity
           Copy-Item $bin.FullName -Destination "Opaline.App.exe" -Force
           Compress-Archive -Path $out -DestinationPath "Opaline-Windows-x64.zip" -Force
           Get-Item "Opaline-Windows-x64.zip", "Opaline.App.exe" | Format-Table Name, Length
@@ -70,7 +69,6 @@ jobs:
           brew install ldid-procursus 2>/dev/null || true
           which swiftlint || true
           which ldid || true
-          ldid 2>&1 | head -2 || true
 
       - name: Ensure Local.xcconfig
         working-directory: ios
@@ -79,7 +77,6 @@ jobs:
             cp Config/Local.xcconfig.example Config/Local.xcconfig
           fi
           ls -la Config/
-          cat Config/Local.xcconfig
 
       - name: Soften SwiftLint for CI
         run: |
@@ -90,7 +87,6 @@ jobs:
             echo 'swiftlint-real "$@" || true' >> /opt/homebrew/bin/swiftlint
             chmod +x /opt/homebrew/bin/swiftlint
           fi
-          which swiftlint || true
 
       - name: Build unsigned IPA
         working-directory: ios
@@ -98,18 +94,18 @@ jobs:
           UPDATE_SOURCE: "0"
           IPA_VERSION: "0.0.${{ github.run_number }}"
           BUILD_NUMBER: "${{ github.run_number }}"
-          XCODEBUILD_EXTRA_ARGS: "CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= CODE_SIGNING_ALLOWED=NO"
+          XCODEBUILD_EXTRA_ARGS: "CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="
         run: |
           set -e
           chmod +x make_ipa.sh
-          # Ensure xcodebuild gets unsigned flags
           export XCODEBUILD_EXTRA_ARGS="CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="
           ./make_ipa.sh
           ls -lh Opaline_*.ipa
-          # Normalize name for release
           IPA=$(ls -1 Opaline_*.ipa | head -1)
-          cp "$IPA" "../Opaline-iOS-unsigned.ipa"
-          cp "$IPA" "../Opaline_${IPA_VERSION}.ipa"
+          # Publish to workspace root for artifact + release
+          cp "$IPA" "${GITHUB_WORKSPACE}/Opaline-iOS-unsigned.ipa"
+          cp "$IPA" "${GITHUB_WORKSPACE}/Opaline_${IPA_VERSION}.ipa"
+          ls -lh "${GITHUB_WORKSPACE}/Opaline-iOS-unsigned.ipa" "${GITHUB_WORKSPACE}/Opaline_${IPA_VERSION}.ipa"
 
       - name: Upload iOS IPA artifact
         uses: actions/upload-artifact@v4
@@ -117,14 +113,14 @@ jobs:
           name: ios-release
           path: |
             Opaline-iOS-unsigned.ipa
-            Opaline_*.ipa
+            Opaline_0.0.${{ github.run_number }}.ipa
           if-no-files-found: error
 
   release:
     name: Publish GitHub Release
     needs: [windows, ios]
     runs-on: ubuntu-latest
-    if: always() && needs.windows.result == 'success'
+    if: always() && needs.windows.result == 'success' && needs.ios.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
@@ -135,14 +131,16 @@ jobs:
           path: dist
 
       - name: Download iOS artifacts
-        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: ios-release
           path: dist
 
       - name: List dist
-        run: ls -lah dist/ || true
+        run: |
+          ls -lah dist/
+          test -f dist/Opaline-Windows-x64.zip
+          test -f dist/Opaline-iOS-unsigned.ipa
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -165,8 +163,8 @@ jobs:
             dist/Opaline-Windows-x64.zip
             dist/Opaline.App.exe
             dist/Opaline-iOS-unsigned.ipa
-            dist/Opaline_*.ipa
-          fail_on_unmatched_files: false
+            dist/Opaline_0.0.${{ github.run_number }}.ipa
+          fail_on_unmatched_files: true
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
