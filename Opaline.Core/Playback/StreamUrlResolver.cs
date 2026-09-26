@@ -57,7 +57,7 @@ public sealed class StreamUrlResolver
                 {
                     return new ResolvedStream(
                         PrimaryUrl: local!,
-                        Video: new StreamInfo { Url = local!, MimeType = "video/mp4", QualityLabel = "SABR-UMP" },
+                        Video: new StreamInfo { Url = local!, MimeType = "video/mp4", QualityLabel = string.IsNullOrEmpty(_sabr.UstreamerSource) ? "SABR-UMP" : ("SABR-" + _sabr.UstreamerSource) },
                         Audio: string.IsNullOrEmpty(_sabr.LocalAudioUrl) ? null : new StreamInfo
                         {
                             Url = _sabr.LocalAudioUrl!,

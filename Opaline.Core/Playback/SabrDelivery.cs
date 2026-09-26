@@ -23,6 +23,8 @@ public sealed class SabrDelivery : ISabrPlaybackController, IDisposable
     public string? LocalVideoUrl { get; private set; }
     public string? LocalAudioUrl { get; private set; }
     public string? LastError { get; private set; }
+    /// <summary>VideoPlaybackUstreamer or OnesieUstreamer.</summary>
+    public string? UstreamerSource { get; private set; }
     public bool IsActive => _session?.IsUmpActive == true;
 
 
@@ -41,27 +43,14 @@ public sealed class SabrDelivery : ISabrPlaybackController, IDisposable
             return null;
         }
 
-        var ustreamerB64 = page.VideoPlaybackUstreamerConfig
-            ?? page.OnesieUstreamerConfig;
-        if (string.IsNullOrEmpty(ustreamerB64))
+        var resolved = OnesieConfigResolver.TryResolve(page);
+        if (resolved is null)
         {
             LastError = "no videoPlaybackUstreamerConfig/onesieUstreamerConfig";
             return null;
         }
-
-        byte[] ustreamer;
-        try
-        {
-            // web-safe base64
-            var s = ustreamerB64.Replace('-', '+').Replace('_', '/');
-            switch (s.Length % 4) { case 2: s += "=="; break; case 3: s += "="; break; }
-            ustreamer = Convert.FromBase64String(s);
-        }
-        catch (Exception ex)
-        {
-            LastError = "ustreamerConfig decode: " + ex.Message;
-            return null;
-        }
+        var ustreamer = resolved.Value.Bytes;
+        UstreamerSource = resolved.Value.Source.ToString();
 
         var videoFmt = SelectVideoFormat(page);
         var audioFmt = SelectAudioFormat(page);

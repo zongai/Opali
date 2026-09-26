@@ -22,3 +22,8 @@
 - Deep-scan player JSON for videoPlaybackUstreamerConfig / onesieUstreamerConfig
 - Re-fetch /player as TV then WEB and merge SABR fields when ANDROID omits them
 - Onesie config used as SABR request field-5 fallback
+
+## Onesie
+- iOS: extracts `onesieUstreamerConfig` only — **no separate Onesie HTTP delivery**
+- Windows: `OnesieConfigResolver` priority = videoPlayback → onesie; feeds SABR field 5
+- SABR still requires `serverAbrStreamingUrl` + a resolvable ustreamer blob
