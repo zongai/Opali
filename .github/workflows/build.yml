@@ -1,10 +1,7 @@
 name: Build & Release
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  # 仅手动触发：Actions → Build & Release → Run workflow
   workflow_dispatch:
 
 permissions:
@@ -126,7 +123,7 @@ jobs:
     name: Publish GitHub Release
     needs: [windows, ios]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && always() && needs.windows.result == 'success'
+    if: always() && needs.windows.result == 'success'
     steps:
       - uses: actions/checkout@v4
 

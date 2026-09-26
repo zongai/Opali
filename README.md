@@ -38,11 +38,11 @@ xcodebuild -project Opaline.xcodeproj -scheme Opaline \
 
 ## CI
 
-Push to `main` runs **both** Windows and iOS jobs in parallel (see `.github/workflows/build.yml`).
+CI does **not** run on every commit. Trigger manually: **Actions → Build & Release → Run workflow**.
 
 ## Releases
 
-Every push to `main` publishes a GitHub Release tagged `build-<run_number>` with:
+Manually run **Actions → Build & Release → Run workflow** to publish a GitHub Release tagged `build-<run_number>` with:
 
 | Asset | Description |
 |-------|-------------|
