@@ -193,27 +193,6 @@ enum DownloadMenu {
         ToastView.show(key.localized, in: presenter.view, isError: isError)
     }
 
-
-    private static func exportItem(
-        _ video: Video,
-        from presenter: UIViewController,
-        anchor: UIView
-    ) -> PlayerMenuItem {
-        PlayerMenuItem(title: "downloads.export".localized, iconName: "square.and.arrow.up") {
-            let url = DownloadStore.videoFile(for: video.id)
-            guard FileManager.default.fileExists(atPath: url.path) else {
-                toast("downloads.error.missing", in: presenter, isError: true)
-                return
-            }
-            let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-            if let pop = vc.popoverPresentationController {
-                pop.sourceView = anchor
-                pop.sourceRect = anchor.bounds
-            }
-            presenter.present(vc, animated: true)
-        }
-    }
-
     static func sizeText(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file

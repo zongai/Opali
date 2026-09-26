@@ -283,14 +283,3 @@ private extension DateFormatter {
         return formatter
     }()
 }
-
-
-// MARK: - Toolbar helpers (recovered stubs for missing +Editing extension)
-extension NotificationsViewController {
-    func applyEditToolbarTheme() {}
-    func updateToolbarButtonsState() {
-        let selected = tableView.indexPathsForSelectedRows?.count ?? 0
-        deleteToolbarItem.isEnabled = selected > 0
-        markAllReadToolbarItem.isEnabled = !items.isEmpty
-    }
-}

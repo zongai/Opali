@@ -135,16 +135,3 @@ final class FetchBatch {
         self.completion = completion
     }
 }
-
-// MARK: - Incomplete ChannelRSSService body
-extension ChannelRSSService {
-    func invalidate(_ channelIds: [String], variant: RSSFeedVariant) {}
-
-    func fetchOnQueue(
-        channelIds: [String],
-        variant: RSSFeedVariant,
-        completion: @escaping ([String: [RSSVideoEntry]]) -> Void
-    ) {
-        DispatchQueue.main.async { completion([:]) }
-    }
-}

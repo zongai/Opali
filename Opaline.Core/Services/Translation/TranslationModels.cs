@@ -1,10 +1,12 @@
 namespace Opaline.Core.Services.Translation;
 
+/// <summary>Harbor TranslationEngine order: Google → MyMemory → Lingva (+ optional DeepL).</summary>
 public enum TranslationEngine
 {
     Google,
     MyMemory,
-    Lingva
+    Lingva,
+    DeepL
 }
 
 public sealed class TranslationException : Exception
@@ -46,5 +48,24 @@ public static class TargetLanguages
         "zh" or "zh-hans" or "zh-cn" => "zh-CN",
         "zh-hant" or "zh-tw" => "zh-TW",
         _ => code
+    };
+
+    /// <summary>DeepL uses uppercase codes; zh-CN → ZH.</summary>
+    public static string NormalizeDeepL(string code) => code.ToLowerInvariant() switch
+    {
+        "zh" or "zh-cn" or "zh-hans" => "ZH",
+        "zh-tw" or "zh-hant" => "ZH-HANT",
+        "en" => "EN",
+        "ja" => "JA",
+        "ko" => "KO",
+        "es" => "ES",
+        "fr" => "FR",
+        "de" => "DE",
+        "ru" => "RU",
+        "pt" => "PT",
+        "vi" => "VI",
+        "id" => "ID",
+        "ar" => "AR",
+        _ => code.ToUpperInvariant()
     };
 }

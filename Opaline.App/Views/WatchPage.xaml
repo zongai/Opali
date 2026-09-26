@@ -177,6 +177,7 @@
                                 </TextBlock>
                                 <TextBlock Text="{x:Bind Text}" TextWrapping="WrapWholeWords"
                                            Style="{StaticResource BodyTextBlockStyle}" />
+                                <TextBlock Text="{x:Bind TranslatedText}" TextWrapping="WrapWholeWords" Opacity="0.85" Style="{StaticResource BodyTextBlockStyle}" />
                                 <TextBlock Opacity="0.55" Style="{StaticResource CaptionTextBlockStyle}">
                                     <Run Text="👍 " /><Run Text="{x:Bind LikeCount}" />
                                 </TextBlock>

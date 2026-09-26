@@ -276,18 +276,3 @@ extension PlaybackFacade {
         identityRedraws = 0
     }
 }
-
-// MARK: - Recovered stubs
-
-struct ResolveAttempt {
-    let videoId: String
-    let apiClient: WatchService
-    let cancellationToken: CancellationToken
-    let startedAt: Date
-    let identityGeneration: Int
-}
-
-extension PlaybackFacade {
-    func retryOnFreshIdentity(_ result: Swift.Result<PreparedPlayback, Error>, attempt: ResolveAttempt) -> Bool { false }
-    func fetchWatchtimeAndTrack() {}
-}

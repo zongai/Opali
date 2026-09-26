@@ -116,10 +116,3 @@ extension HLSStreamResolver {
         playerJSCache = (path, text)
     }
 }
-
-extension HLSStreamResolver {
-    /// Parse remote solver response into a signed URL. Stub when +Remote missing.
-    static func parseRemoteSolved(data: Data?, unsolved: URL) -> URL? {
-        nil
-    }
-}

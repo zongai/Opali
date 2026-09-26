@@ -46,6 +46,7 @@ public sealed class TranslationService
                     TranslationEngine.Google => await GoogleTranslateAsync(trimmed, targetLang, ct).ConfigureAwait(false),
                     TranslationEngine.MyMemory => await MyMemoryTranslateAsync(trimmed, targetLang, ct).ConfigureAwait(false),
                     TranslationEngine.Lingva => await LingvaTranslateAsync(trimmed, targetLang, ct).ConfigureAwait(false),
+                    TranslationEngine.DeepL => await DeepLTranslateAsync(trimmed, targetLang, ct).ConfigureAwait(false),
                     _ => throw new TranslationException($"Unknown engine {engine}")
                 };
                 if (!string.IsNullOrWhiteSpace(result))

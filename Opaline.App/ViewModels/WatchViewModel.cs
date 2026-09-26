@@ -81,6 +81,10 @@ public partial class WatchViewModel : ObservableObject
     public ObservableCollection<CaptionTrack> Captions { get; } = new();
     public ObservableCollection<StreamInfo> Qualities { get; } = new();
 
+    public IReadOnlyList<LangOption> LanguageOptions { get; } =
+        TargetLanguages.All.Select(x => new LangOption(x.Code, x.Name)).ToList();
+
+
     private WatchPage? _page;
     private ResolvedStream? _resolved;
 
@@ -344,7 +348,7 @@ public partial class WatchViewModel : ObservableObject
                 TranslatedDescription = await _translator.TranslateAsync(
                     Video.Description.Length > 2000 ? Video.Description[..2000] : Video.Description,
                     TargetLanguage);
-            TranslateStatus = "标题已翻译";
+            TranslateStatus = "标题已翻译 (Harbor chain)";
             DisplayTitle = TranslatedTitle ?? DisplayTitle;
         }
         catch (Exception ex)
@@ -366,21 +370,14 @@ public partial class WatchViewModel : ObservableObject
             var translated = await _translator.TranslateManyAsync(texts, TargetLanguage);
             for (int i = 0; i < Comments.Count && i < translated.Count; i++)
             {
-                var c = Comments[i];
-                Comments[i] = new CommentThread
-                {
-                    Id = c.Id,
-                    AuthorName = c.AuthorName,
-                    AuthorAvatarUrl = c.AuthorAvatarUrl,
-                    Text = translated[i],
-                    LikeCount = c.LikeCount,
-                    PublishedAt = c.PublishedAt,
-                    PublishedTime = c.PublishedTime,
-                    ReplyCount = c.ReplyCount,
-                    Replies = c.Replies
-                };
+                Comments[i].TranslatedText = translated[i];
             }
-            TranslateStatus = $"已翻译 {translated.Count} 条评论";
+            // Force UI refresh
+            var snapshot = Comments.ToList();
+            Comments.Clear();
+            foreach (var c in snapshot)
+                Comments.Add(c);
+            TranslateStatus = $"已翻译 {translated.Count} 条评论 (Harbor: Google→MyMemory→Lingva)";
         }
         catch (Exception ex)
         {
@@ -389,7 +386,6 @@ public partial class WatchViewModel : ObservableObject
         finally { IsTranslating = false; }
     }
 
-    [RelayCommand]
     public async Task TranslateCaptionAsync()
     {
         var raw = CaptionText;
@@ -404,7 +400,7 @@ public partial class WatchViewModel : ObservableObject
         {
             TranslatedCaption = await _translator.TranslateCaptionAsync(raw, TargetLanguage);
             CaptionText = TranslatedCaption;
-            TranslateStatus = "字幕已翻译";
+            TranslateStatus = "字幕已翻译 (Harbor chain)";
         }
         catch (Exception ex)
         {
@@ -420,3 +416,5 @@ public partial class WatchViewModel : ObservableObject
         _ => n.ToString()
     };
 }
+
+public sealed record LangOption(string Code, string Name);

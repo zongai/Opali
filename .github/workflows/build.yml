@@ -1,8 +1,9 @@
 name: Build & Release
 
 on:
-  # 仅手动触发：Actions → Build & Release → Run workflow
   workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: write
