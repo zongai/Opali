@@ -90,15 +90,16 @@ public sealed class DownloadService : IDownloadService
     }
 
 
-    public void SaveWatchPage(string videoId, object watchPagePayload)
+    public void SaveWatchSnapshot(OfflineWatchSnapshot snapshot)
     {
-        try
-        {
-            var path = Path.Combine(_root, $"{videoId}.watch.json");
-            var json = System.Text.Json.JsonSerializer.Serialize(watchPagePayload);
-            File.WriteAllText(path, json);
-        }
+        try { OfflineWatchService.WriteSnapshot(_root, snapshot); }
         catch { /* ignore */ }
+    }
+
+    public OfflineWatchSnapshot? TryLoadWatchSnapshot(string videoId)
+    {
+        try { return OfflineWatchService.ReadSnapshot(_root, videoId); }
+        catch { return null; }
     }
 
     public string? TryGetLocalMediaPath(string videoId)
