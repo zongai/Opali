@@ -634,3 +634,4 @@
 "settings.section.speed" = "Playback speed";
 "settings.row.defaultSpeed" = "Default speed";
 "settings.footer.defaultSpeed" = "Applied when opening a video. You can still change speed in the player.";
+"settings.footer.translationTarget" = "Used for title, comments, and captions. System follows the app language.";

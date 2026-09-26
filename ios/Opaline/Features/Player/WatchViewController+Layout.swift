@@ -282,18 +282,16 @@ extension WatchViewController {
         )
         if #available(iOS 13.0, *) {
             let cfg = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
-            if UIImage(named: "icon_translate") == nil {
-                translateTitleButton.setImage(
-                    UIImage(systemName: "character.book.closed", withConfiguration: cfg),
-                    for: .normal
-                )
-            }
-            if UIImage(named: "icon_closed_caption") == nil {
-                translateCaptionsButton.setImage(
-                    UIImage(systemName: "captions.bubble", withConfiguration: cfg),
-                    for: .normal
-                )
-            }
+            let titleImg = UIImage(named: "icon_translate")
+                ?? UIImage(systemName: "globe", withConfiguration: cfg)
+            let capImg = UIImage(named: "icon_closed_caption")
+                ?? UIImage(systemName: "captions.bubble", withConfiguration: cfg)
+            translateTitleButton.setImage(
+                titleImg?.withRenderingMode(.alwaysTemplate), for: .normal
+            )
+            translateCaptionsButton.setImage(
+                capImg?.withRenderingMode(.alwaysTemplate), for: .normal
+            )
         }
         for item in actionBarItems {
             item.button.addTapFeedback()
@@ -446,9 +444,10 @@ extension WatchViewController {
     private func configureCommentsTranslateButton() {
         let btn = translateCommentsButton
         btn.setTitle("player.translate.commentsShort".localized, for: .normal)
-        btn.titleLabel?.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
-        btn.contentEdgeInsets = UIEdgeInsets(top: 7, left: 14, bottom: 7, right: 14)
-        btn.layer.cornerRadius = 15
+        btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
+        btn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14)
+        btn.layer.cornerRadius = 14
+        btn.layer.borderWidth = 1
         btn.clipsToBounds = true
         btn.setContentHuggingPriority(.required, for: .horizontal)
         btn.setContentCompressionResistancePriority(.required, for: .horizontal)
@@ -456,7 +455,17 @@ extension WatchViewController {
             self, action: #selector(translateCommentsTapped), for: .touchUpInside
         )
         btn.addTapFeedback()
+        styleCommentsTranslateChip()
         commentsPanel.setSortTrailingButton(btn)
+    }
+
+    func styleCommentsTranslateChip() {
+        let theme = ThemeManager.shared
+        let btn = translateCommentsButton
+        btn.setTitleColor(theme.primaryText, for: .normal)
+        btn.backgroundColor = theme.surface
+        btn.layer.borderColor = theme.separator.cgColor
+        btn.tintColor = theme.primaryText
     }
 
     /// Both panels drag by their handle-and-header region; the table view

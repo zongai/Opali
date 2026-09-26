@@ -578,3 +578,4 @@
 "settings.section.speed" = "播放速度";
 "settings.row.defaultSpeed" = "默认速度";
 "settings.footer.defaultSpeed" = "打开视频时使用。播放中仍可在播放器内临时调整。";
+"settings.footer.translationTarget" = "用于标题、评论与字幕。跟随系统时使用应用界面语言。";
