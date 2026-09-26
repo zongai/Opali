@@ -96,7 +96,7 @@ public partial class WatchViewModel : ObservableObject
             DisplayViews = Video.ViewCount is long vc
                 ? (vc >= 1_000_000 ? $"{vc / 1_000_000.0:0.#}M views" : vc >= 1_000 ? $"{vc / 1_000.0:0.#}K views" : $"{vc} views")
                 : "";
-            _history.AddHistory(Video);
+            _history.AddToHistory(Video);
 
             foreach (var c in _page.CaptionTracks)
                 Captions.Add(c);

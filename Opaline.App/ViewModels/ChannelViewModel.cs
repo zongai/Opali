@@ -42,7 +42,7 @@ public partial class ChannelViewModel : ObservableObject
             Title = page.Channel.Title;
             AvatarUrl = page.Channel.AvatarUrl;
             BannerUrl = page.Channel.BannerUrl;
-            SubscriberText = page.Channel.SubscriberCount;
+            SubscriberText = page.Channel.FormattedSubscribers;
             IsSubscribed = page.IsSubscribed;
             foreach (var v in page.Videos)
                 Videos.Add(v);
