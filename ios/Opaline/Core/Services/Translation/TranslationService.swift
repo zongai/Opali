@@ -26,17 +26,16 @@ enum TranslationError: LocalizedError {
         case .failed(let m):
             return m
         case .allFailed(let target, let details):
-            let lines = details.map { "\($0.0.rawValue): \($0.1)" }.joined(separator: "\n")
+            let lines = details.map { pair in
+                "\(pair.0.rawValue): \(pair.1)"
+            }.joined(separator: "\n")
             let header = "player.translate.error.allFailed".localized(with: target)
             return header + "\n" + lines
-" + lines
         }
     }
 }
 
 
-/// Canonical BCP-47-ish codes and per-engine mappings for accurate target
-/// language + source auto-detect.
 enum TranslationLanguageNorm {
     /// App / settings → stable form used in cache keys and settings.
     static func canonical(_ code: String) -> String {

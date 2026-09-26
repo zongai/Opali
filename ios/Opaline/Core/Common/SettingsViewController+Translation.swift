@@ -262,18 +262,17 @@ extension SettingsViewController {
         present(loading, animated: true)
         TranslationService.shared.testDeepLKeys(list) { [weak self] results in
             loading.dismiss(animated: true) {
-                let lines = results.map { r in
-                    let mark = r.ok ? "✓" : "✗"
-                    return "\(mark) \(r.mask)
-  \(r.detail)"
+                let lines: [String] = results.map { r in
+                    let mark = r.ok ? "OK" : "FAIL"
+                    return "\(mark) \(r.mask): \(r.detail)"
                 }
                 let okCount = results.filter(\.ok).count
-                let summary = "settings.translation.deepL.testSummary".localized(
-                    with: okCount, results.count
+                let summary = String(
+                    format: "settings.translation.deepL.testSummary".localized,
+                    okCount,
+                    results.count
                 )
-                let body = ([summary] + lines).joined(separator: "
-
-")
+                let body = ([summary] + lines).joined(separator: "\n")
                 let alert = UIAlertController(
                     title: "settings.translation.deepL.test".localized,
                     message: body,
@@ -286,4 +285,3 @@ extension SettingsViewController {
         }
     }
 }
-
