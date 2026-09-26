@@ -606,3 +606,7 @@
 "player.translate.noComments" = "No comments to translate";
 "player.translate.noCaptions" = "No captions active";
 "player.translate.caption" = "Translated";
+
+"player.translate.titleShort" = "Title";
+"player.translate.captionsShort" = "CC";
+"player.translate.commentsShort" = "Translate";

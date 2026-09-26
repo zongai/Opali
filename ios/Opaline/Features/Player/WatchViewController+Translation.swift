@@ -3,6 +3,22 @@ import UIKit
 // MARK: - Harbor-style translation (title / description / comments / captions)
 
 extension WatchViewController {
+
+    @objc
+    func translateTitleTapped() {
+        translateTitleAndDescription()
+    }
+
+    @objc
+    func translateCaptionsTapped() {
+        translateActiveCaptions()
+    }
+
+    @objc
+    func translateCommentsTapped() {
+        translateVisibleComments()
+    }
+
     /// Settings → translate title + description, all loaded comments, active captions.
     func showTranslationMenu() {
         let items: [PlayerMenuItem] = [

@@ -155,6 +155,12 @@ final class WatchViewController: UIViewController {
     let shareButton = UIButton(type: .system)
     let saveButton = UIButton(type: .system)
     let downloadButton = UIButton(type: .system)
+    /// Title/description translate — sits with share / save.
+    let translateTitleButton = UIButton(type: .system)
+    /// Active captions translate — sits with share / save.
+    let translateCaptionsButton = UIButton(type: .system)
+    /// Comments translate — sits next to 最热门 / 最新 on the comments sheet.
+    let translateCommentsButton = UIButton(type: .system)
     /// Doubles as the download button's caption: "Download" at rest, the
     /// running percentage while a job is on.
     let downloadStatusLabel = UILabel()

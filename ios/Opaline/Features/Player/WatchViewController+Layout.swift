@@ -27,6 +27,16 @@ extension WatchViewController {
                 label: "player.action.save".localized
             ),
             ActionBarItem(
+                button: translateTitleButton,
+                icon: "icon_translate",
+                label: "player.translate.titleShort".localized
+            ),
+            ActionBarItem(
+                button: translateCaptionsButton,
+                icon: "icon_closed_caption",
+                label: "player.translate.captionsShort".localized
+            ),
+            ActionBarItem(
                 button: downloadButton,
                 icon: "icon_download",
                 label: "player.action.download".localized,
@@ -264,6 +274,27 @@ extension WatchViewController {
         downloadButton.addTarget(
             self, action: #selector(downloadTapped), for: .touchUpInside
         )
+        translateTitleButton.addTarget(
+            self, action: #selector(translateTitleTapped), for: .touchUpInside
+        )
+        translateCaptionsButton.addTarget(
+            self, action: #selector(translateCaptionsTapped), for: .touchUpInside
+        )
+        if #available(iOS 13.0, *) {
+            let cfg = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+            if UIImage(named: "icon_translate") == nil {
+                translateTitleButton.setImage(
+                    UIImage(systemName: "character.book.closed", withConfiguration: cfg),
+                    for: .normal
+                )
+            }
+            if UIImage(named: "icon_closed_caption") == nil {
+                translateCaptionsButton.setImage(
+                    UIImage(systemName: "captions.bubble", withConfiguration: cfg),
+                    for: .normal
+                )
+            }
+        }
         for item in actionBarItems {
             item.button.addTapFeedback()
         }
@@ -408,7 +439,22 @@ extension WatchViewController {
         commentsPanel.onSelectSort = { [weak self] index in
             self?.selectCommentSort(at: index)
         }
+        configureCommentsTranslateButton()
         commentsPanel.isHidden = true
+    }
+
+    private func configureCommentsTranslateButton() {
+        let btn = translateCommentsButton
+        btn.setTitle("player.translate.commentsShort".localized, for: .normal)
+        btn.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        btn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
+        btn.layer.cornerRadius = 16
+        btn.clipsToBounds = true
+        btn.addTarget(
+            self, action: #selector(translateCommentsTapped), for: .touchUpInside
+        )
+        btn.addTapFeedback()
+        commentsPanel.setSortTrailingButton(btn)
     }
 
     /// Both panels drag by their handle-and-header region; the table view

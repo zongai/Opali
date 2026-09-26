@@ -550,3 +550,7 @@
 "player.translate.noComments" = "没有可翻译的评论";
 "player.translate.noCaptions" = "当前没有字幕";
 "player.translate.caption" = "译文";
+
+"player.translate.titleShort" = "翻译";
+"player.translate.captionsShort" = "字幕";
+"player.translate.commentsShort" = "翻译";

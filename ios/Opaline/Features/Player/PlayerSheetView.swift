@@ -24,6 +24,8 @@ final class PlayerSheetView: UIView {
     private let buttonRow = UIView()
     private let buttonStack = UIStackView()
     private let sortBar = ChipBarView()
+    /// Sort chips + optional trailing control (e.g. translate comments).
+    private let sortRow = UIStackView()
     /// Grab handle, title and sort bar stacked together — a stack view so
     /// hiding the sort bar collapses the space it took with it.
     private let chrome = UIStackView()
@@ -63,17 +65,33 @@ final class PlayerSheetView: UIView {
         buttonRow.isHidden = buttons.isEmpty
     }
 
+    /// Trailing control on the sort row (next to 最热门 / 最新).
+    func setSortTrailingButton(_ button: UIButton?) {
+        for v in sortRow.arrangedSubviews where v !== sortBar {
+            v.removeFromSuperview()
+        }
+        if let button {
+            button.setContentHuggingPriority(.required, for: .horizontal)
+            sortRow.addArrangedSubview(button)
+            sortRow.isHidden = false
+        } else {
+            sortRow.isHidden = sortBar.isHidden
+        }
+    }
+
     /// Shows the server's sort choices; an empty list hides the bar (replies
     /// pages and videos with a single order don't send one).
     func setSortOptions(_ options: [CommentSortOption]) {
-        sortBar.isHidden = options.count < 2
-        guard options.count > 1 else {
-            return
+        let show = options.count >= 2
+        sortBar.isHidden = !show
+        if show {
+            sortBar.setLabels(
+                options.map(\.title),
+                selected: options.firstIndex(where: \.isSelected) ?? 0
+            )
         }
-        sortBar.setLabels(
-            options.map(\.title),
-            selected: options.firstIndex(where: \.isSelected) ?? 0
-        )
+        // Keep row visible if a trailing button is present even with one sort
+        sortRow.isHidden = sortBar.isHidden && sortRow.arrangedSubviews.count <= 1
     }
 
     private func setup() {
@@ -91,10 +109,18 @@ final class PlayerSheetView: UIView {
         headerStack.spacing = 8
         headerStack.addArrangedSubview(titleLabel)
         chrome.axis = .vertical
+        sortRow.axis = .horizontal
+        sortRow.alignment = .center
+        sortRow.spacing = 8
+        sortRow.isLayoutMarginsRelativeArrangement = true
+        sortRow.layoutMargins = UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
+        sortRow.isHidden = true
         sortBar.isHidden = true
+        sortBar.setContentHuggingPriority(.defaultLow, for: .horizontal)
         sortBar.onSelect = { [weak self] index in
             self?.onSelectSort?(index)
         }
+        sortRow.addArrangedSubview(sortBar)
         addSubviews()
         activateConstraints()
     }
@@ -118,7 +144,7 @@ final class PlayerSheetView: UIView {
         }
         chrome.addArrangedSubview(dragRegion)
         chrome.addArrangedSubview(buttonRow)
-        chrome.addArrangedSubview(sortBar)
+        chrome.addArrangedSubview(sortRow)
     }
 
     private func activateButtonRowConstraints() {

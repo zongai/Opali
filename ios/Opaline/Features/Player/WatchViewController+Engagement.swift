@@ -71,6 +71,8 @@ extension WatchViewController {
         commentsPreviewCard.layer.borderColor = theme.separator.cgColor
         commentPreviewContentView.applyTheme()
         commentsPanel.applyTheme(theme)
+        translateCommentsButton.setTitleColor(theme.primaryText, for: .normal)
+        translateCommentsButton.backgroundColor = theme.separator
         loadedQueuePanel?.applyTheme(theme)
         commentsTableView.reloadData()
     }
@@ -85,7 +87,7 @@ extension WatchViewController {
         sidebarContainer.backgroundColor = theme.background
         applyThemeToText(theme)
         applyThemeToComments(theme)
-        for btn in [likeButton, dislikeButton, shareButton, saveButton, downloadButton] {
+        for btn in [likeButton, dislikeButton, shareButton, saveButton, downloadButton, translateTitleButton, translateCaptionsButton] {
             btn.tintColor = theme.primaryText
         }
         playerContainer.backgroundColor = .black
