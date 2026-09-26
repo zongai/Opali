@@ -72,14 +72,8 @@ public sealed class WebView2BotGuardMinter : IBotGuardMinter, IDisposable
             _hostWindow.Activate();
             _hostWindow.AppWindow.Hide();
 
-            var ud = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Opaline", "WebView2BotGuard");
-            Directory.CreateDirectory(ud);
-
-            // CreateAsync(browserExecutableFolder, userDataFolder, options)
-            var env = await CoreWebView2Environment.CreateAsync(null, ud);
-            await _webView.EnsureCoreWebView2Async(env);
+            // Default environment (WinUI WebView2); user data under app package path
+            await _webView.EnsureCoreWebView2Async();
 
             _core = _webView.CoreWebView2;
             _core.Settings.AreDefaultScriptDialogsEnabled = false;
