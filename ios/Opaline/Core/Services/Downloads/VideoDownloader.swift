@@ -245,3 +245,11 @@ enum DownloadError: LocalizedError {
         }
     }
 }
+
+extension VideoDownloader {
+    func bytesAlreadySaved(videoId: String) -> Int64 {
+        let url = DownloadStore.videoFile(for: videoId)
+        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+        return (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+    }
+}
