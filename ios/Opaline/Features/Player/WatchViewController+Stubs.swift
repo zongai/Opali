@@ -23,3 +23,9 @@ extension VideoPlayerView {
         player = nil
     }
 }
+
+extension WatchViewController {
+    func exitFullscreenIfNeeded() {}
+}
+
+func refreshSupportedOrientations() {}

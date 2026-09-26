@@ -408,3 +408,30 @@ extension InnertubeClient {
         }
     }
 }
+
+// MARK: - Parsing helpers (recovered stubs)
+
+extension InnertubeClient {
+    static func simpleText(from node: Any?) -> String? {
+        if let s = node as? String { return s }
+        if let d = node as? [String: Any] {
+            if let t = d["simpleText"] as? String { return t }
+            if let runs = d["runs"] as? [[String: Any]] {
+                return runs.compactMap { $0["text"] as? String }.joined()
+            }
+        }
+        return nil
+    }
+}
+
+extension Dictionary where Key == String, Value == Any {
+    func digString(_ path: String...) -> String? {
+        var current: Any? = self
+        for key in path {
+            guard let dict = current as? [String: Any] else { return nil }
+            current = dict[key]
+        }
+        if let s = current as? String { return s }
+        return InnertubeClient.simpleText(from: current)
+    }
+}
