@@ -23,6 +23,9 @@ extension WatchViewController {
         commentsPreview = nil
         isLoadingComments = false
         hasLoadedComments = false
+        commentTranslations = [:]
+        originalTitleText = nil
+        translatedDescriptionText = nil
         collapseComments()
         setCommentsTitle("player.comments.title".localized)
         renderComments()
@@ -271,7 +274,11 @@ extension WatchViewController {
             }
             return
         }
-        commentPreviewContentView.configure(preview, linkDelegate: self)
+        commentPreviewContentView.configure(
+            preview,
+            linkDelegate: self,
+            translatedText: commentTranslations[preview.id]
+        )
         commentsStackView.addArrangedSubview(commentPreviewContentView)
     }
 

@@ -37,7 +37,8 @@ final class CommentContentView: UIView {
     func configure(
         _ comment: Comment,
         linkDelegate: UITextViewDelegate,
-        isReply: Bool = false
+        isReply: Bool = false,
+        translatedText: String? = nil
     ) {
         self.comment = comment
         self.isReply = isReply
@@ -65,7 +66,20 @@ final class CommentContentView: UIView {
         let theme = ThemeManager.shared
         likeIcon.tintColor = theme.secondaryText
         likeLabel.textColor = theme.secondaryText
-        contentTextView.attributedText = CommentBodyCache.body(for: comment)
+        if let translatedText, !translatedText.isEmpty {
+            let base = NSMutableAttributedString(attributedString: CommentBodyCache.body(for: comment))
+            base.append(NSAttributedString(string: "\n\n"))
+            base.append(NSAttributedString(
+                string: translatedText,
+                attributes: [
+                    .font: UIFont.systemFont(ofSize: 14),
+                    .foregroundColor: theme.primaryText
+                ]
+            ))
+            contentTextView.attributedText = base
+        } else {
+            contentTextView.attributedText = CommentBodyCache.body(for: comment)
+        }
         contentTextView.linkTextAttributes = [.foregroundColor: theme.accent]
         contentTextView.delegate = linkDelegate
         authorLabel.textColor = theme.secondaryText

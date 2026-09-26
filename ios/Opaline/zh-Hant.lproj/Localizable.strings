@@ -540,3 +540,13 @@
 "settings.row.resetIdentity" = "重設 visitor identity";
 "library.downloads.empty" = "你下載的影片會顯示在這裡";
 "player.error.noSources" = "所有播放來源都已關閉。請在「設定 → 除錯 → 播放來源」中至少開啟一個。";
+
+"player.translate.menu" = "翻譯";
+"player.translate.titleDesc" = "翻譯標題與簡介";
+"player.translate.comments" = "翻譯留言";
+"player.translate.captions" = "翻譯字幕";
+"player.translate.done" = "翻譯完成";
+"player.translate.failed" = "翻譯失敗";
+"player.translate.noComments" = "沒有可翻譯的留言";
+"player.translate.noCaptions" = "目前沒有字幕";
+"player.translate.caption" = "譯文";

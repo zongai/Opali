@@ -51,6 +51,11 @@ extension WatchViewController: VideoPlayerViewDelegate {
                 $0.toggleStatsOverlay()
             }
         )
+        items.append(
+            menuItem("player.translate.menu".localized) {
+                $0.showTranslationMenu()
+            }
+        )
         return items
     }
 

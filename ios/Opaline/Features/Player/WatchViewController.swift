@@ -68,6 +68,13 @@ final class WatchViewController: UIViewController {
     /// Raw (un-linkified) description text, kept so the attributed text can
     /// be rebuilt when the theme changes.
     var descriptionText = ""
+    /// Original title before in-place translation.
+    var originalTitleText: String?
+    /// Translated description (shown under original when set).
+    var translatedDescriptionText: String?
+    /// commentId → translated body
+    var commentTranslations: [String: String] = [:]
+    var isTranslating = false
     /// `hasLoadedComments` separates "nothing yet" from "nothing at
     /// all": a load is always coming when the screen opens, so the
     /// empty message must not flash before the first result lands.

@@ -137,7 +137,12 @@ private extension WatchViewController {
             for: indexPath
         ) as? CommentCell
             ?? CommentCell(style: .default, reuseIdentifier: CommentCell.reuseId)
-        cell.configure(comment, linkDelegate: self, isReply: isReply)
+        cell.configure(
+            comment,
+            linkDelegate: self,
+            isReply: isReply,
+            translatedText: commentTranslations[comment.id]
+        )
         return cell
     }
 

@@ -596,3 +596,13 @@
 "settings.thumbnailQuality.maximum" = "Maximum (1280×720)";
 "settings.footer.thumbnailQuality" = "Auto picks a level from the amount of memory your device has. Higher quality means larger downloads and more memory per thumbnail, which can slow scrolling on devices with little RAM.";
 "player.error.noSources" = "No playback sources are enabled. Turn one on in Settings → Debug → Playback sources.";
+
+"player.translate.menu" = "Translate";
+"player.translate.titleDesc" = "Translate title & description";
+"player.translate.comments" = "Translate comments";
+"player.translate.captions" = "Translate captions";
+"player.translate.done" = "Translated";
+"player.translate.failed" = "Translation failed";
+"player.translate.noComments" = "No comments to translate";
+"player.translate.noCaptions" = "No captions active";
+"player.translate.caption" = "Translated";

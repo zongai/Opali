@@ -41,10 +41,16 @@ final class CommentCell: UITableViewCell {
     func configure(
         _ comment: Comment,
         linkDelegate: UITextViewDelegate,
-        isReply: Bool = false
+        isReply: Bool = false,
+        translatedText: String? = nil
     ) {
         leading?.constant = isReply ? 16 + Self.replyIndent : 16
-        content.configure(comment, linkDelegate: linkDelegate, isReply: isReply)
+        content.configure(
+            comment,
+            linkDelegate: linkDelegate,
+            isReply: isReply,
+            translatedText: translatedText
+        )
     }
 }
 

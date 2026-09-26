@@ -540,3 +540,13 @@
 "settings.row.resetIdentity" = "重置 visitor identity";
 "library.downloads.empty" = "你下载的视频将显示在这里";
 "player.error.noSources" = "所有播放源都已关闭。请在「设置 → 调试 → 播放源」中至少打开一个。";
+
+"player.translate.menu" = "翻译";
+"player.translate.titleDesc" = "翻译标题与简介";
+"player.translate.comments" = "翻译评论";
+"player.translate.captions" = "翻译字幕";
+"player.translate.done" = "翻译完成";
+"player.translate.failed" = "翻译失败";
+"player.translate.noComments" = "没有可翻译的评论";
+"player.translate.noCaptions" = "当前没有字幕";
+"player.translate.caption" = "译文";
