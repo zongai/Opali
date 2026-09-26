@@ -516,6 +516,7 @@ public partial class WatchViewModel : ObservableObject
         finally { IsTranslating = false; }
     }
 
+    [RelayCommand]
     public async Task TranslateCaptionAsync()
     {
         var raw = CaptionText;
