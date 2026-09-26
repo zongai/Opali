@@ -6,6 +6,8 @@ enum TranslationPreferences {
         case google
         case myMemory
         case lingva
+        case yandex
+        case azureBing
         case deepL
 
         var displayNameKey: String {
@@ -13,6 +15,8 @@ enum TranslationPreferences {
             case .google: return "settings.translation.engine.google"
             case .myMemory: return "settings.translation.engine.myMemory"
             case .lingva: return "settings.translation.engine.lingva"
+            case .yandex: return "settings.translation.engine.yandex"
+            case .azureBing: return "settings.translation.engine.azureBing"
             case .deepL: return "settings.translation.engine.deepL"
             }
         }
@@ -24,6 +28,8 @@ enum TranslationPreferences {
             case .google: return .google
             case .myMemory: return .myMemory
             case .lingva: return .lingva
+            case .yandex: return .yandex
+            case .azureBing: return .azureBing
             case .deepL: return .deepL
             }
         }
@@ -65,9 +71,11 @@ enum TranslationPreferences {
     static var engineChain: [TranslationEngine] {
         let preferred = preferredEngine.asServiceEngine
         var rest = TranslationEngine.allCases.filter { $0 != preferred }
-        if preferred != .deepL {
-            rest = rest.filter { $0 != .deepL } + [.deepL]
-        }
+        // Harbor order for free engines; DeepL always last unless preferred.
+        let harborOrder: [TranslationEngine] = [
+            .google, .myMemory, .lingva, .yandex, .azureBing, .deepL
+        ]
+        rest = harborOrder.filter { $0 != preferred }
         return [preferred] + rest
     }
 

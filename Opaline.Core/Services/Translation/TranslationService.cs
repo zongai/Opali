@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 namespace Opaline.Core.Services.Translation;
 
 /// <summary>
-/// Harbor-style translation chain: Google (free gtx) → MyMemory → Lingva.
+/// Harbor feature/epub-opds chain: Google → MyMemory → Lingva → Yandex → Bing → DeepL.
 /// Rate-limit cooldown and simple result cache.
 /// Reference: https://github.com/zongai/Harbor TranslationServices / TranslationCoordinator
 /// </summary>
@@ -21,7 +21,15 @@ public sealed class TranslationService
     public TranslationService(HttpClient http) => _http = http;
 
     public IReadOnlyList<TranslationEngine> DefaultChain { get; } =
-        new[] { TranslationEngine.Google, TranslationEngine.MyMemory, TranslationEngine.Lingva };
+        new[]
+        {
+            TranslationEngine.Google,
+            TranslationEngine.MyMemory,
+            TranslationEngine.Lingva,
+            TranslationEngine.Yandex,
+            TranslationEngine.AzureBing,
+            TranslationEngine.DeepL,
+        };
 
     public async Task<string> TranslateAsync(
         string text,
@@ -46,6 +54,8 @@ public sealed class TranslationService
                     TranslationEngine.Google => await GoogleTranslateAsync(trimmed, targetLang, ct).ConfigureAwait(false),
                     TranslationEngine.MyMemory => await MyMemoryTranslateAsync(trimmed, targetLang, ct).ConfigureAwait(false),
                     TranslationEngine.Lingva => await LingvaTranslateAsync(trimmed, targetLang, ct).ConfigureAwait(false),
+                    TranslationEngine.Yandex => await YandexTranslateAsync(trimmed, targetLang, ct).ConfigureAwait(false),
+                    TranslationEngine.AzureBing => await BingTranslateAsync(trimmed, targetLang, ct).ConfigureAwait(false),
                     TranslationEngine.DeepL => await DeepLTranslateAsync(trimmed, targetLang, ct).ConfigureAwait(false),
                     _ => throw new TranslationException($"Unknown engine {engine}")
                 };
@@ -278,6 +288,145 @@ public sealed class TranslationService
         throw new TranslationException("Lingva 解析失败");
     }
 
+
+
+    // ── Yandex (Harbor YandexTranslate, no key) ─────────────────────────
+    private string? _yandexSid;
+    private DateTimeOffset _yandexSidExpires = DateTimeOffset.MinValue;
+
+    private async Task<string> YandexTranslateAsync(string text, string targetLang, CancellationToken ct)
+    {
+        var sid = await GetYandexSidAsync(ct).ConfigureAwait(false);
+        var tl = TargetLanguages.NormalizeYandex(targetLang);
+        var url =
+            "https://translate.yandex.net/api/v1/tr.json/translate"
+            + "?srv=tr-text"
+            + "&sid=" + Uri.EscapeDataString(sid + "-5-0")
+            + "&target_lang=" + Uri.EscapeDataString(tl)
+            + "&reason=paste&format=text&strategy=0&disable_cache=false&ajax=1";
+        using var req = new HttpRequestMessage(HttpMethod.Post, url);
+        req.Headers.TryAddWithoutValidation("User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        req.Headers.TryAddWithoutValidation("Origin", "https://translate.yandex.ru");
+        req.Headers.TryAddWithoutValidation("Referer", "https://translate.yandex.ru/");
+        var chunk = text.Length > 600 ? text[..600] : text;
+        req.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["options"] = "0",
+            ["text"] = chunk,
+        });
+        using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+        var raw = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+            throw new TranslationException($"Yandex 失败 ({(int)resp.StatusCode})");
+        using var doc = JsonDocument.Parse(raw);
+        if (doc.RootElement.TryGetProperty("text", out var arr) && arr.ValueKind == JsonValueKind.Array)
+        {
+            var parts = new List<string>();
+            foreach (var el in arr.EnumerateArray())
+                if (el.ValueKind == JsonValueKind.String)
+                    parts.Add(el.GetString() ?? "");
+            var joined = string.Concat(parts);
+            if (!string.IsNullOrEmpty(joined)) return joined;
+        }
+        throw new TranslationException("Yandex 无译文");
+    }
+
+    private async Task<string> GetYandexSidAsync(CancellationToken ct)
+    {
+        if (!string.IsNullOrEmpty(_yandexSid) && _yandexSidExpires > DateTimeOffset.UtcNow)
+            return _yandexSid!;
+        var yu = Random.Shared.NextInt64(1_000_000_000_000, 9_999_999_999_999_999);
+        var yum = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
+        var url = $"https://translate.yandex.ru/props/api/v1.0/sessions?srv=tr-text&yu={yu}&yum={yum}";
+        using var req = new HttpRequestMessage(HttpMethod.Post, url);
+        req.Headers.TryAddWithoutValidation("User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        req.Headers.TryAddWithoutValidation("Origin", "https://translate.yandex.ru");
+        req.Content = new StringContent("", Encoding.UTF8, "application/x-www-form-urlencoded");
+        using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+        var raw = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+            throw new TranslationException($"Yandex session ({(int)resp.StatusCode})");
+        using var doc = JsonDocument.Parse(raw);
+        var session = doc.RootElement.GetProperty("session");
+        var id = session.GetProperty("id").GetString()
+            ?? throw new TranslationException("Yandex session parse");
+        var created = session.TryGetProperty("creationTimestamp", out var c) ? c.GetDouble() : DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var maxAge = session.TryGetProperty("maxAge", out var m) ? m.GetDouble() : 3600;
+        _yandexSid = id;
+        _yandexSidExpires = DateTimeOffset.FromUnixTimeSeconds((long)(created + maxAge - 60));
+        return id;
+    }
+
+    // ── Bing web (Harbor AzureBingTranslate, no key) ────────────────────
+    private string? _bingIg, _bingIid, _bingKey, _bingToken, _bingHost;
+    private DateTimeOffset _bingAuthExpires = DateTimeOffset.MinValue;
+
+    private async Task<string> BingTranslateAsync(string text, string targetLang, CancellationToken ct)
+    {
+        await EnsureBingAuthAsync(ct).ConfigureAwait(false);
+        var tl = TargetLanguages.NormalizeBing(targetLang);
+        var host = _bingHost ?? "www.bing.com";
+        var url = $"https://{host}/ttranslatev3?isVertical=1&IG={Uri.EscapeDataString(_bingIg!)}&IID={Uri.EscapeDataString(_bingIid!)}";
+        using var req = new HttpRequestMessage(HttpMethod.Post, url);
+        req.Headers.TryAddWithoutValidation("User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        req.Headers.TryAddWithoutValidation("Referer", "https://www.bing.com/translator");
+        var chunk = text.Length > 1000 ? text[..1000] : text;
+        req.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["fromLang"] = "auto-detect",
+            ["text"] = chunk,
+            ["to"] = tl,
+            ["token"] = _bingToken!,
+            ["key"] = _bingKey!,
+        });
+        using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+        var raw = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+            throw new TranslationException($"Bing 失败 ({(int)resp.StatusCode})");
+        using var doc = JsonDocument.Parse(raw);
+        if (doc.RootElement.ValueKind == JsonValueKind.Array
+            && doc.RootElement.GetArrayLength() > 0)
+        {
+            var first = doc.RootElement[0];
+            if (first.TryGetProperty("translations", out var tr)
+                && tr.GetArrayLength() > 0
+                && tr[0].TryGetProperty("text", out var tx))
+            {
+                var s = tx.GetString();
+                if (!string.IsNullOrEmpty(s)) return s;
+            }
+        }
+        throw new TranslationException("Bing 解析失败");
+    }
+
+    private async Task EnsureBingAuthAsync(CancellationToken ct)
+    {
+        if (!string.IsNullOrEmpty(_bingToken) && _bingAuthExpires > DateTimeOffset.UtcNow)
+            return;
+        using var req = new HttpRequestMessage(HttpMethod.Get, "https://www.bing.com/translator");
+        req.Headers.TryAddWithoutValidation("User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+        var html = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+            throw new TranslationException($"Bing page ({(int)resp.StatusCode})");
+        var abuse = Regex.Match(html,
+            @"params_AbusePreventionHelper\s*=\s*\[\s*(\d+)\s*,\s*""([^""]+)""\s*,\s*(\d+)\s*\]");
+        var ig = Regex.Match(html, @"IG\s*:\s*""([A-Fa-f0-9]+)""");
+        var iid = Regex.Match(html, @"data-iid\s*=\s*""([^""]+)""");
+        if (!abuse.Success || !ig.Success || !iid.Success)
+            throw new TranslationException("Bing auth parse");
+        _bingKey = abuse.Groups[1].Value;
+        _bingToken = abuse.Groups[2].Value;
+        var ttlMs = double.TryParse(abuse.Groups[3].Value, out var ttl) ? ttl : 3_600_000;
+        _bingIg = ig.Groups[1].Value;
+        _bingIid = iid.Groups[1].Value;
+        _bingHost = resp.RequestMessage?.RequestUri?.Host ?? "www.bing.com";
+        _bingAuthExpires = DateTimeOffset.UtcNow.AddMilliseconds(Math.Max(ttlMs - 60_000, 0));
+    }
 
     // ── DeepL (Harbor DeepLTranslate; optional key via OPALINE_DEEPL_KEY) ─
 

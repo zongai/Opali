@@ -665,3 +665,5 @@ key2:fx";
 "settings.translation.deepL.testing" = "Checking…";
 "settings.translation.deepL.testOK" = "OK";
 "settings.translation.deepL.testSummary" = "%d / %d keys available";
+"settings.translation.engine.yandex" = "Yandex (no key)";
+"settings.translation.engine.azureBing" = "Bing (no key)";

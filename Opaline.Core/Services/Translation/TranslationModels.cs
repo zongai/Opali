@@ -1,11 +1,16 @@
 namespace Opaline.Core.Services.Translation;
 
-/// <summary>Harbor TranslationEngine order: Google → MyMemory → Lingva (+ optional DeepL).</summary>
+/// <summary>
+/// Harbor feature/epub-opds engine order:
+/// Google → MyMemory → Lingva → Yandex → Bing → DeepL.
+/// </summary>
 public enum TranslationEngine
 {
     Google,
     MyMemory,
     Lingva,
+    Yandex,
+    AzureBing,
     DeepL
 }
 
@@ -38,19 +43,39 @@ public static class TargetLanguages
 
     public static string NormalizeGoogle(string code) => code.ToLowerInvariant() switch
     {
-        "zh" or "zh-hans" => "zh-CN",
-        "zh-hant" => "zh-TW",
-        _ => code
-    };
-
-    public static string NormalizeMyMemory(string code) => code.ToLowerInvariant() switch
-    {
         "zh" or "zh-hans" or "zh-cn" => "zh-CN",
         "zh-hant" or "zh-tw" => "zh-TW",
         _ => code
     };
 
-    /// <summary>DeepL uses uppercase codes; zh-CN → ZH.</summary>
+    public static string NormalizeMyMemory(string code) => NormalizeGoogle(code);
+
+    public static string NormalizeLingva(string code) => code.ToLowerInvariant() switch
+    {
+        "zh" or "zh-hans" or "zh-cn" => "zh",
+        "zh-hant" or "zh-tw" => "zh_HANT",
+        _ => code.Replace('-', '_')
+    };
+
+    public static string NormalizeYandex(string code)
+    {
+        var l = code.ToLowerInvariant();
+        if (l.StartsWith("zh")) return "zh";
+        if (l.StartsWith("en")) return "en";
+        if (l.StartsWith("ja")) return "ja";
+        if (l.StartsWith("ko")) return "ko";
+        return l.Length >= 2 ? l[..2] : l;
+    }
+
+    public static string NormalizeBing(string code) => code.ToLowerInvariant() switch
+    {
+        "zh" or "zh-cn" or "zh-hans" => "zh-Hans",
+        "zh-tw" or "zh-hk" or "zh-hant" => "zh-Hant",
+        "en" or "en-us" or "en-gb" => "en",
+        _ => code.Contains('-') ? code.Split('-')[0] : code
+    };
+
+    /// <summary>DeepL uses uppercase codes; zh-CN → ZH, zh-TW → ZH-HANT.</summary>
     public static string NormalizeDeepL(string code) => code.ToLowerInvariant() switch
     {
         "zh" or "zh-cn" or "zh-hans" => "ZH",

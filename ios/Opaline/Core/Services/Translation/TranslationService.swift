@@ -1,10 +1,11 @@
 import Foundation
 import NaturalLanguage
 
-/// Harbor-style translation chain: Google (free gtx) → MyMemory → Lingva.
+/// Harbor-style chain (feature/epub-opds): Google → MyMemory → Lingva → Yandex → Bing → DeepL.
 /// Optional DeepL via `OPALINE_DEEPL_KEY` / `DEEPL_API_KEY` environment.
 enum TranslationEngine: String, CaseIterable {
-    case google, myMemory, lingva, deepL
+    // Order mirrors Harbor feature/epub-opds free chain + DeepL
+    case google, myMemory, lingva, yandex, azureBing, deepL
 }
 
 enum TranslationError: LocalizedError {
@@ -74,7 +75,7 @@ enum TranslationLanguageNorm {
     static func forLingva(_ code: String) -> String {
         switch canonical(code) {
         case "zh-CN": return "zh_CN"
-        case "zh-TW": return "zh_TW"
+        case "zh-TW": return "zh_HANT"
         default: return canonical(code).replacingOccurrences(of: "-", with: "_").lowercased()
         }
     }
@@ -325,6 +326,8 @@ final class TranslationService {
         case .google: google(text, target, completion)
         case .myMemory: myMemory(text, target, completion)
         case .lingva: lingva(text, target, completion)
+        case .yandex: YandexTranslateEngine.translate(text, target: target, completion: completion)
+        case .azureBing: AzureBingTranslateEngine.translate(text, target: target, completion: completion)
         case .deepL: deepL(text, target, completion)
         }
     }
