@@ -25,4 +25,6 @@ public interface IYouTubeService
     Task<bool> AddVideoToPlaylistAsync(string playlistId, string videoId, CancellationToken ct = default);
     Task<bool> RemoveVideoFromPlaylistAsync(string playlistId, string videoId, CancellationToken ct = default);
     Task<IReadOnlyList<CaptionTrack>> FetchCaptionTracksIosAsync(string videoId, CancellationToken ct = default);
+
+    Task<IReadOnlyList<PlaylistAddOption>> GetAddToPlaylistOptionsAsync(string videoId, CancellationToken ct = default);
 }

@@ -26,3 +26,11 @@ public sealed class PlaylistEditAction
         return d;
     }
 }
+
+
+public sealed class PlaylistAddOption
+{
+    public string Id { get; init; } = "";
+    public string Title { get; init; } = "";
+    public bool IsAdded { get; init; }
+}

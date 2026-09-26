@@ -68,4 +68,7 @@ public sealed class YouTubeService : IYouTubeService
 
     public Task<IReadOnlyList<CaptionTrack>> FetchCaptionTracksIosAsync(string videoId, CancellationToken ct = default)
         => _client.FetchCaptionTracksIosAsync(videoId, ct);
+
+    public Task<IReadOnlyList<PlaylistAddOption>> GetAddToPlaylistOptionsAsync(string videoId, CancellationToken ct = default)
+        => _client.GetAddToPlaylistOptionsAsync(videoId, ct);
 }

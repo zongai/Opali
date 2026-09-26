@@ -150,4 +150,10 @@ public sealed partial class WatchPage : Page
         };
         _skipTimer.Start();
     }
+
+    private async void PlaylistPicker_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is PlaylistAddOption opt)
+            await ViewModel.AddToPlaylistAsync(opt);
+    }
 }

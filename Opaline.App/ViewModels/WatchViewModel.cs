@@ -335,7 +335,61 @@ public partial class WatchViewModel : ObservableObject
     }
 
 
+    [ObservableProperty] private string? playlistStatus;
+
     [RelayCommand]
+    public async Task ShowAddToPlaylistAsync()
+    {
+        if (Video is null) return;
+        PlaylistStatus = "加载播放列表…";
+        try
+        {
+            var options = await _yt.GetAddToPlaylistOptionsAsync(Video.Id);
+            if (options.Count == 0)
+            {
+                // Fallback: library playlists
+                var lib = await _yt.GetLibraryPlaylistsAsync();
+                options = lib.Select(p => new PlaylistAddOption
+                {
+                    Id = p.Id,
+                    Title = p.Title,
+                    IsAdded = false
+                }).ToList();
+            }
+            PendingPlaylistOptions.Clear();
+            foreach (var o in options)
+                PendingPlaylistOptions.Add(o);
+            PlaylistStatus = options.Count == 0
+                ? "无可用播放列表（需登录）"
+                : $"共 {options.Count} 个播放列表";
+            IsPlaylistPickerOpen = true;
+        }
+        catch (Exception ex)
+        {
+            PlaylistStatus = $"加载失败: {ex.Message}";
+        }
+    }
+
+    [ObservableProperty] private bool isPlaylistPickerOpen;
+    public ObservableCollection<PlaylistAddOption> PendingPlaylistOptions { get; } = new();
+
+    [RelayCommand]
+    public async Task AddToPlaylistAsync(PlaylistAddOption? option)
+    {
+        if (Video is null || option is null) return;
+        try
+        {
+            var ok = await _yt.AddVideoToPlaylistAsync(option.Id, Video.Id);
+            PlaylistStatus = ok ? $"已加入：{option.Title}" : $"加入失败：{option.Title}";
+            IsPlaylistPickerOpen = false;
+        }
+        catch (Exception ex)
+        {
+            PlaylistStatus = $"加入失败: {ex.Message}";
+        }
+    }
+
+        [RelayCommand]
     public async Task TranslateTitleAsync()
     {
         if (Video is null) return;
@@ -386,7 +440,6 @@ public partial class WatchViewModel : ObservableObject
         finally { IsTranslating = false; }
     }
 
-    [RelayCommand]
     public async Task TranslateCaptionAsync()
     {
         var raw = CaptionText;

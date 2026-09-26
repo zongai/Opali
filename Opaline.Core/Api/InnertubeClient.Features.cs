@@ -428,4 +428,68 @@ public sealed partial class InnertubeClient
         var json = await PostAsync("player", body, ClientIdentity.Ios, sendAuth: false, ct).ConfigureAwait(false);
         return ParseCaptionTracks(json);
     }
+
+    /// <summary>iOS playlist/get_add_to_playlist — options for the picker UI.</summary>
+    public async Task<IReadOnlyList<PlaylistAddOption>> GetAddToPlaylistOptionsAsync(
+        string videoId, CancellationToken ct = default)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["context"] = new
+            {
+                client = new
+                {
+                    clientName = "TVHTML5",
+                    clientVersion = ClientIdentity.Tv.ClientVersion,
+                    hl = "en",
+                    gl = "US",
+                    platform = "TV"
+                }
+            },
+            ["videoIds"] = new[] { videoId }
+        };
+        var json = await PostAsync("playlist/get_add_to_playlist", body, ClientIdentity.Tv, sendAuth: true, ct)
+            .ConfigureAwait(false);
+        return ParseAddToPlaylistOptions(json);
+    }
+
+    private static IReadOnlyList<PlaylistAddOption> ParseAddToPlaylistOptions(JsonNode json)
+    {
+        var list = new List<PlaylistAddOption>();
+        void Walk(JsonNode? n)
+        {
+            if (n is null) return;
+            if (n is JsonObject obj)
+            {
+                if (obj.TryGetPropertyValue("playlistAddToOptionRenderer", out var r) && r is not null)
+                {
+                    var id = r["playlistId"]?.GetValue<string>();
+                    if (!string.IsNullOrEmpty(id))
+                    {
+                        var title = r["title"]?["simpleText"]?.GetValue<string>()
+                                 ?? r["title"]?["runs"]?.AsArray()?.FirstOrDefault()?["text"]?.GetValue<string>()
+                                 ?? id;
+                        var contains = r["containsSelectedVideos"]?.GetValue<string>();
+                        list.Add(new PlaylistAddOption
+                        {
+                            Id = id!,
+                            Title = title!,
+                            IsAdded = string.Equals(contains, "ALL", StringComparison.OrdinalIgnoreCase)
+                        });
+                    }
+                }
+                foreach (var kv in obj) Walk(kv.Value);
+            }
+            else if (n is JsonArray arr)
+            {
+                foreach (var c in arr) Walk(c);
+            }
+        }
+        Walk(json);
+        return list
+            .GroupBy(x => x.Id)
+            .Select(g => g.First())
+            .ToList();
+    }
+
 }

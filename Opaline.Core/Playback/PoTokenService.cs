@@ -12,6 +12,7 @@ namespace Opaline.Core.Playback;
 public sealed class PoTokenService
 {
     private readonly HttpClient _http;
+    private readonly BotGuardPoTokenClient _botGuard = new();
     private readonly ConcurrentDictionary<string, CachedMint> _cache = new();
     private static readonly TimeSpan TokenTtl = TimeSpan.FromMinutes(30);
 
@@ -26,6 +27,14 @@ public sealed class PoTokenService
         if (_cache.TryGetValue(key, out var cached)
             && DateTimeOffset.UtcNow - cached.Minted < TokenTtl)
             return cached.Token;
+
+        // Local BotGuard path (not available yet on Windows)
+        var local = await _botGuard.TryMintLocalAsync(contentBinding, client, ct).ConfigureAwait(false);
+        if (!string.IsNullOrEmpty(local))
+        {
+            _cache[key] = new CachedMint(local!, DateTimeOffset.UtcNow);
+            return local;
+        }
 
         var endpoint = AppUrls.PoTokenProvider.GetPot;
         if (endpoint is null) return null;

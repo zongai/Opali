@@ -75,6 +75,9 @@
                         <Button Content="Download"
                                 Command="{x:Bind ViewModel.DownloadCommand}"
                                 AutomationProperties.AutomationId="WatchDownload" />
+                        <Button Content="加入播放列表"
+                                Command="{x:Bind ViewModel.ShowAddToPlaylistCommand}"
+                                AutomationProperties.AutomationId="WatchAddToPlaylist" />
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Spacing="12">
@@ -127,6 +130,24 @@
                                 Command="{x:Bind ViewModel.TranslateCaptionCommand}"
                                 AutomationProperties.AutomationId="WatchTranslateCaption" />
                     </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.PlaylistStatus, Mode=OneWay}"
+                               Style="{StaticResource CaptionTextBlockStyle}" />
+                    <ListView x:Name="PlaylistPicker"
+                              MaxHeight="180"
+                              Visibility="{x:Bind ViewModel.IsPlaylistPickerOpen, Mode=OneWay}"
+                              ItemsSource="{x:Bind ViewModel.PendingPlaylistOptions, Mode=OneWay}"
+                              IsItemClickEnabled="True"
+                              ItemClick="PlaylistPicker_ItemClick"
+                              AutomationProperties.AutomationId="PlaylistPicker">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:PlaylistAddOption">
+                                <TextBlock Padding="4">
+                                    <Run Text="{x:Bind Title}" />
+                                    <Run Text="{x:Bind IsAdded}" />
+                                </TextBlock>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
                     <TextBlock Text="{x:Bind ViewModel.TranslateStatus, Mode=OneWay}"
                                Opacity="0.75" TextWrapping="Wrap" />
                     <TextBlock Text="{x:Bind ViewModel.TranslatedTitle, Mode=OneWay}"

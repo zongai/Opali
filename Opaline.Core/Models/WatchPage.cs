@@ -16,9 +16,9 @@ public sealed class WatchPage
 
     /// <summary>Server-provided HLS master playlist (preferred for adaptive).</summary>
     public string? HlsManifestUrl { get; init; }
-
-    /// <summary>Server-provided DASH MPD (fallback adaptive).</summary>
     public string? DashManifestUrl { get; init; }
+    /// <summary>SABR UMP endpoint from streamingData.serverAbrStreamingUrl.</summary>
+    public string? ServerAbrStreamingUrl { get; init; }
 
     /// <summary>Available caption / subtitle tracks.</summary>
     public IReadOnlyList<CaptionTrack> CaptionTracks { get; init; } = Array.Empty<CaptionTrack>();
@@ -69,8 +69,6 @@ public sealed class CommentThread
     public string? PublishedTime { get; init; }
     public int ReplyCount { get; init; }
     public IReadOnlyList<CommentThread>? Replies { get; init; }
-    /// <summary>Filled by Harbor-style TranslateComments (original Text kept).</summary>
-    public string? TranslatedText { get; set; }
 }
 
 

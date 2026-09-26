@@ -1,24 +1,22 @@
-# Opaline iOS ↔ Windows parity (2026-09-26)
+# Opaline iOS ↔ Windows parity
 
-## Implemented / extended this pass
+## Home 真推荐
+- TV `tvBrowseRenderer` → `tvSurfaceContentRenderer` → sectionList → **tileRenderer**
+- 回退：ANDROID browse → 并行搜索
+- 个性化依赖登录后的 TV token + 账户历史；无 Element 批处理时仍可能较空
 
-| Area | Status |
-|------|--------|
-| Home true feed | TV → ANDROID → search fallback; tileRenderer parse (TV shelves) |
-| Shorts | /reel/reel_watch_sequence |
-| Comments | protobuf continuation |
-| Captions | player tracks + IOS client fallback (no pot timedtext) |
-| Downloads | progressive file download to LocalAppData |
-| Channel Tabs | Videos / Shorts / Live / Playlists via ChannelTabParams |
-| Playlist edit | browse/edit_playlist add/remove video |
-| Mini player + queue | bottom bar + PlaybackQueue |
-| PO Token | remote /get_pot on stream URLs (WEB then ANDROID) |
-| SABR | stub only (SabrDelivery.IsSupported=false) — needs local UMP proxy |
-| BotGuard PO mint | not local; remote provider only |
+## SABR
+- `streamingData.serverAbrStreamingUrl` 已解析
+- `SabrDelivery`：localhost Range 反代（progressive/HLS 优先）
+- **UMP 解复用未移植**（`IsUmpImplemented=false`）
 
-## Still hard / not full
+## BotGuard PO
+- `BotGuardPoTokenClient` 扩展点（本地 mint 不可用）
+- 生产路径：`PoTokenService` 远程 `/get_pot`（WEB→ANDROID）
 
-- Personalized home without Element protocol / account history tiles
-- Full SABR + LocalMediaServer
-- On-device BotGuard (requires WebView JS challenge stack)
-- Full playlist UI (add-to-playlist picker)
+## 播放列表选择器
+- `playlist/get_add_to_playlist` + Library 回退
+- Watch 页「加入播放列表」列表选择
+
+## 翻译
+- Harbor 链：Google → MyMemory → Lingva（+可选 DeepL）

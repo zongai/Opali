@@ -12,6 +12,7 @@ public sealed class StreamUrlResolver
     private readonly SignatureSolverService _solver;
     private readonly PoTokenService _poToken;
     private readonly SignatureTimestampService _sts;
+    private readonly SabrDelivery _sabr = new();
 
     public StreamUrlResolver(
         SignatureSolverService solver,

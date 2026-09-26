@@ -252,6 +252,8 @@ public sealed partial class InnertubeClient
     private static HomeFeed ParseHomeFeed(JsonNode json)
     {
         var items = new List<FeedItem>();
+        // iOS homeFeedSectionList: contents.tvBrowseRenderer.content.tvSurfaceContentRenderer.content.sectionListRenderer
+        TryExtractTvHomeSurface(json, items);
         TryExtractVideos(json, items);
         // Dedupe by video id (walk visits nested copies)
         var seen = new HashSet<string>();
@@ -305,6 +307,7 @@ public sealed partial class InnertubeClient
 
         var hls = streamingData?["hlsManifestUrl"]?.GetValue<string>();
         var dash = streamingData?["dashManifestUrl"]?.GetValue<string>();
+        var sabr = streamingData?["serverAbrStreamingUrl"]?.GetValue<string>();
 
         var captions = ParseCaptionTracks(json);
         var videoQualities = streams
@@ -324,6 +327,7 @@ public sealed partial class InnertubeClient
             Streams = streams,
             HlsManifestUrl = hls,
             DashManifestUrl = dash,
+            ServerAbrStreamingUrl = sabr,
             CaptionTracks = captions,
             VideoQualities = videoQualities,
             AudioTracks = audioTracks
@@ -381,6 +385,21 @@ public sealed partial class InnertubeClient
             BannerUrl = header?["banner"]?["thumbnails"]?.AsArray()?.LastOrDefault()?["url"]?.GetValue<string>(),
             SubscriberCount = null // needs deeper parse
         };
+    }
+
+
+    /// <summary>iOS-aligned TV home surface → sectionList → tiles.</summary>
+    private static void TryExtractTvHomeSurface(JsonNode json, List<FeedItem> items)
+    {
+        try
+        {
+            var surface = json["contents"]?["tvBrowseRenderer"]?["content"]?["tvSurfaceContentRenderer"]
+                       ?? json["contents"]?["twoColumnBrowseResultsRenderer"];
+            if (surface is null) return;
+            // Walk only this subtree first for ordered shelves
+            TryExtractVideos(surface, items);
+        }
+        catch { /* ignore */ }
     }
 
     private static void TryExtractVideos(JsonNode node, List<FeedItem> items)
