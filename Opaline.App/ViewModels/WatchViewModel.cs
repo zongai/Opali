@@ -49,6 +49,8 @@ public partial class WatchViewModel : ObservableObject
     [ObservableProperty] private string displayChannel = "";
     [ObservableProperty] private string displayViews = "";
     [ObservableProperty] private string? playableUrl;
+    public ISabrPlaybackController? SabrController { get; private set; }
+
     [ObservableProperty] private string? audioUrl;
     [ObservableProperty] private bool isManifest;
     [ObservableProperty] private string? qualityLabel;
@@ -135,6 +137,8 @@ public partial class WatchViewModel : ObservableObject
                 SelectedQualityName = Qualities[0].DisplayLabel;
 
             _resolved = await _playback.ResolveAsync(_page);
+            SabrController = _resolved?.Sabr;
+            SabrController?.StartPump();
             if (_resolved is not null)
             {
                 PlayableUrl = _resolved.PrimaryUrl;
@@ -440,7 +444,6 @@ public partial class WatchViewModel : ObservableObject
         finally { IsTranslating = false; }
     }
 
-    [RelayCommand]
     public async Task TranslateCaptionAsync()
     {
         var raw = CaptionText;

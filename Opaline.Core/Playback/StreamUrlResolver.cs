@@ -65,7 +65,8 @@ public sealed class StreamUrlResolver
                             QualityLabel = "SABR-audio"
                         },
                         IsProgressive: _sabr.LocalAudioUrl is null,
-                        Kind: _sabr.LocalAudioUrl is null ? StreamKind.Progressive : StreamKind.AdaptivePair);
+                        Kind: _sabr.LocalAudioUrl is null ? StreamKind.Progressive : StreamKind.AdaptivePair,
+                        Sabr: _sabr);
                 }
             }
             catch
@@ -282,4 +283,5 @@ public sealed record ResolvedStream(
     StreamInfo Video,
     StreamInfo? Audio,
     bool IsProgressive,
-    StreamKind Kind);
+    StreamKind Kind,
+    ISabrPlaybackController? Sabr = null);

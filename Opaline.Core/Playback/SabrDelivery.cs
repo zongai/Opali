@@ -9,7 +9,7 @@ namespace Opaline.Core.Playback;
 /// SABR delivery with UMP demux (iOS SABRDelivery + LocalMediaServer).
 /// Hosts localhost endpoints serving demuxed fMP4 video/audio buffers.
 /// </summary>
-public sealed class SabrDelivery : IDisposable
+public sealed class SabrDelivery : ISabrPlaybackController, IDisposable
 {
     private HttpListener? _listener;
     private SabrSession? _session;
@@ -23,6 +23,8 @@ public sealed class SabrDelivery : IDisposable
     public string? LocalVideoUrl { get; private set; }
     public string? LocalAudioUrl { get; private set; }
     public string? LastError { get; private set; }
+    public bool IsActive => _session?.IsUmpActive == true;
+
 
     /// <summary>
     /// Start UMP session and local server. Returns local video URL when demux produces bytes.
@@ -95,6 +97,8 @@ public sealed class SabrDelivery : IDisposable
             LastError = _session.LastError ?? "UMP produced no video media";
             return null;
         }
+
+        _session.StartPump();
 
         _port = await StartListenerAsync(_cts.Token).ConfigureAwait(false);
         LocalVideoUrl = $"http://127.0.0.1:{_port}/sabr/video.mp4";
@@ -243,8 +247,20 @@ public sealed class SabrDelivery : IDisposable
         }
     }
 
+    public void StartPump() => _session?.StartPump();
+    public void StopPump() => _session?.StopPump();
+
+    public void ReportPlayerPosition(TimeSpan position)
+        => _session?.ReportPlayerPosition(position);
+
+    public Task SeekAsync(TimeSpan position, CancellationToken ct = default)
+        => _session is null
+            ? Task.CompletedTask
+            : _session.SeekAsync(position, ct);
+
     public void Stop()
     {
+        try { _session?.StopPump(); } catch { /* */ }
         try { _cts?.Cancel(); } catch { /* */ }
         try { _listener?.Stop(); _listener?.Close(); } catch { /* */ }
         _listener = null;

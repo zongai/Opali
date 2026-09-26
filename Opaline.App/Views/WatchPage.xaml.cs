@@ -73,6 +73,7 @@ public sealed partial class WatchPage : Page
 
         try
         {
+            _player.AttachSabr(ViewModel.SabrController);
             await _player.LoadAsync(ViewModel.PlayableUrl!, ViewModel.AudioUrl, ViewModel.IsManifest);
             StartSkipMonitor();
             AppLog.Info("WatchPage", "playback started");

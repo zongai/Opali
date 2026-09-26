@@ -4,6 +4,7 @@ using Microsoft.UI.Dispatching;
 using Windows.Media.Core;
 using Windows.Media.Playback;
 using Windows.Media.Streaming.Adaptive;
+using Opaline.Core.Playback;
 
 namespace Opaline.App.Services;
 
@@ -19,8 +20,16 @@ public sealed class DualStreamPlayer : IDisposable
     private bool _syncing;
     private DispatcherQueueTimer? _syncTimer;
     private readonly DispatcherQueue? _dispatcher;
+    private ISabrPlaybackController? _sabr;
 
     public bool IsDual => _dual;
+
+    public void AttachSabr(ISabrPlaybackController? sabr)
+    {
+        _sabr = sabr;
+        sabr?.StartPump();
+    }
+
 
     public DualStreamPlayer(DispatcherQueue? dispatcher = null)
     {
@@ -70,6 +79,8 @@ public sealed class DualStreamPlayer : IDisposable
         {
             VideoPlayer.IsMuted = false;
             AudioPlayer.Source = null;
+            // Still report clock for SABR continuous fetch
+            StartSyncLoop();
         }
     }
 
@@ -92,6 +103,7 @@ public sealed class DualStreamPlayer : IDisposable
         {
             VideoPlayer.Position = position;
             if (_dual) AudioPlayer.Position = position;
+            _ = _sabr?.SeekAsync(position);
         }
         finally
         {
@@ -101,6 +113,8 @@ public sealed class DualStreamPlayer : IDisposable
 
     public void Stop()
     {
+        _sabr?.StopPump();
+        _sabr = null;
         if (_syncTimer is not null)
         {
             _syncTimer.Stop();
@@ -133,6 +147,12 @@ public sealed class DualStreamPlayer : IDisposable
 
     private void OnSyncTick(DispatcherQueueTimer sender, object args)
     {
+        try
+        {
+            _sabr?.ReportPlayerPosition(VideoPlayer.Position);
+        }
+        catch { /* */ }
+
         if (!_dual || _syncing) return;
         try
         {

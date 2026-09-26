@@ -3,13 +3,11 @@ using System.Net.Http.Headers;
 namespace Opaline.Core.Playback.Sabr;
 
 /// <summary>
-/// SABR session with TV sabrAbrState + playback cookie round-trip
-/// (iOS SABRFetcher / SABRSegmentCollector policy).
+/// SABR session: TV abrState, playback cookie, continuous segment pump, seek.
 /// </summary>
 public sealed class SabrSession : IDisposable
 {
     private readonly HttpClient _http;
-    private readonly string _serverAbrUrl;
     private readonly byte[] _ustreamerConfig;
     private readonly SabrFormatInfo _video;
     private readonly SabrFormatInfo _audio;
@@ -26,6 +24,15 @@ public sealed class SabrSession : IDisposable
     private readonly MemoryStream _audioBuffer = new();
     private readonly object _lock = new();
     private bool _started;
+    private int _playerMs;
+    private int _bufferedUntilVideoMs;
+    private int _bufferedUntilAudioMs;
+    private CancellationTokenSource? _pumpCts;
+    private Task? _pumpTask;
+    private readonly SemaphoreSlim _fetchGate = new(1, 1);
+
+    /// <summary>How far ahead of the playhead to keep buffered (ms).</summary>
+    public int TargetLeadMs { get; set; } = 18_000;
 
     public SabrSession(
         HttpClient http,
@@ -37,7 +44,6 @@ public sealed class SabrSession : IDisposable
         SabrClientKind clientKind = SabrClientKind.Tv)
     {
         _http = http;
-        _serverAbrUrl = serverAbrUrl;
         _url = serverAbrUrl;
         _ustreamerConfig = ustreamerConfig;
         _video = video;
@@ -52,6 +58,8 @@ public sealed class SabrSession : IDisposable
     public string? LastError { get; private set; }
     public int CookieBytes => _playbackCookie?.Length ?? 0;
     public SabrClientKind ClientKind => _clientKind;
+    public int PlayerMs { get { lock (_lock) return _playerMs; } }
+    public int BufferedUntilVideoMs { get { lock (_lock) return _bufferedUntilVideoMs; } }
 
     public async Task StartAsync(CancellationToken ct = default)
     {
@@ -83,14 +91,101 @@ public sealed class SabrSession : IDisposable
         }
     }
 
-    public byte[] SnapshotVideo()
+    /// <summary>Start continuous pull so buffer stays TargetLeadMs ahead of playhead.</summary>
+    public void StartPump()
     {
-        lock (_lock) return _videoBuffer.ToArray();
+        StopPump();
+        _pumpCts = new CancellationTokenSource();
+        var ct = _pumpCts.Token;
+        _pumpTask = Task.Run(() => PumpLoopAsync(ct), ct);
     }
 
-    public byte[] SnapshotAudio()
+    public void StopPump()
     {
-        lock (_lock) return _audioBuffer.ToArray();
+        try { _pumpCts?.Cancel(); } catch { /* */ }
+        _pumpCts = null;
+        _pumpTask = null;
+    }
+
+    /// <summary>Called by player clock (~500ms).</summary>
+    public void ReportPlayerPosition(TimeSpan position)
+    {
+        lock (_lock)
+            _playerMs = (int)Math.Max(0, position.TotalMilliseconds);
+    }
+
+    /// <summary>
+    /// Precise seek: update playhead, drop held if rewinding, pull segments at target.
+    /// </summary>
+    public async Task SeekAsync(TimeSpan position, CancellationToken ct = default)
+    {
+        var ms = (int)Math.Max(0, position.TotalMilliseconds);
+        lock (_lock)
+        {
+            var prev = _playerMs;
+            _playerMs = ms;
+            if (ms < prev)
+            {
+                _heldVideo = null;
+                _heldAudio = null;
+                // Keep byte buffers (init segments); server will re-serve media at new time
+            }
+            // Invalidate "ahead" bookkeeping so pump fills from seek point
+            if (ms + 500 < _bufferedUntilVideoMs)
+                _bufferedUntilVideoMs = ms;
+            if (ms + 500 < _bufferedUntilAudioMs)
+                _bufferedUntilAudioMs = ms;
+        }
+
+        await RespectBackoffAsync(ct).ConfigureAwait(false);
+        // Burst a few segments at seek target
+        for (var i = 0; i < 4; i++)
+        {
+            await FetchSegmentAsync(_video, _audio, isInit: false, playerMs: ms + i * 2000, ct).ConfigureAwait(false);
+            await FetchSegmentAsync(_audio, _video, isInit: false, playerMs: ms + i * 2000, ct).ConfigureAwait(false);
+        }
+    }
+
+    private async Task PumpLoopAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                int playerMs, bufV, bufA, lead;
+                lock (_lock)
+                {
+                    playerMs = _playerMs;
+                    bufV = _bufferedUntilVideoMs;
+                    bufA = _bufferedUntilAudioMs;
+                    lead = TargetLeadMs;
+                }
+
+                var needVideo = bufV < playerMs + lead;
+                var needAudio = bufA < playerMs + lead;
+
+                if (needVideo || needAudio)
+                {
+                    await RespectBackoffAsync(ct).ConfigureAwait(false);
+                    var t = Math.Max(playerMs, Math.Min(bufV, bufA));
+                    if (needVideo)
+                        await FetchSegmentAsync(_video, _audio, isInit: false, playerMs: t, ct).ConfigureAwait(false);
+                    if (needAudio)
+                        await FetchSegmentAsync(_audio, _video, isInit: false, playerMs: t, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Task.Delay(400, ct).ConfigureAwait(false);
+                }
+
+                await Task.Delay(200, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { break; }
+            catch
+            {
+                try { await Task.Delay(1000, ct).ConfigureAwait(false); } catch { break; }
+            }
+        }
     }
 
     public int ReadVideo(long offset, byte[] buffer, int count)
@@ -119,7 +214,7 @@ public sealed class SabrSession : IDisposable
         lock (_lock) ms = _backoffMs;
         if (ms > 0)
         {
-            await Task.Delay(ms, ct).ConfigureAwait(false);
+            await Task.Delay(Math.Min(ms, 5000), ct).ConfigureAwait(false);
             lock (_lock) _backoffMs = 0;
         }
     }
@@ -127,26 +222,33 @@ public sealed class SabrSession : IDisposable
     private async Task FetchSegmentAsync(
         SabrFormatInfo format, SabrFormatInfo other, bool isInit, int playerMs, CancellationToken ct)
     {
-        var itag = format.Itag;
-        SabrBufferedRange? held;
-        byte[]? cookie;
-        lock (_lock)
+        await _fetchGate.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            // Seek backwards: drop held range (iOS SABRFetcher)
-            if (_lastRequestedMs.TryGetValue(itag, out var last) && playerMs < last)
+            var itag = format.Itag;
+            SabrBufferedRange? held;
+            byte[]? cookie;
+            lock (_lock)
             {
-                if ((format.Height ?? 0) > 0) _heldVideo = null;
-                else _heldAudio = null;
+                if (_lastRequestedMs.TryGetValue(itag, out var last) && playerMs < last)
+                {
+                    if ((format.Height ?? 0) > 0) _heldVideo = null;
+                    else _heldAudio = null;
+                }
+                _lastRequestedMs[itag] = playerMs;
+                held = (format.Height ?? 0) > 0 ? _heldVideo : _heldAudio;
+                cookie = _playbackCookie;
             }
-            _lastRequestedMs[itag] = playerMs;
-            held = (format.Height ?? 0) > 0 ? _heldVideo : _heldAudio;
-            cookie = _playbackCookie;
-        }
 
-        var body = SabrRequestBuilder.Segment(
-            _ustreamerConfig, format, other, isInit, playerMs, held, _clientKind, _poToken, cookie);
-        var collector = await PostAsync(body, ct).ConfigureAwait(false);
-        AppendMedia(collector);
+            var body = SabrRequestBuilder.Segment(
+                _ustreamerConfig, format, other, isInit, playerMs, held, _clientKind, _poToken, cookie);
+            var collector = await PostAsync(body, ct).ConfigureAwait(false);
+            AppendMedia(collector);
+        }
+        finally
+        {
+            _fetchGate.Release();
+        }
     }
 
     private async Task<SabrSegmentCollector> PostAsync(byte[] body, CancellationToken ct)
@@ -157,14 +259,12 @@ public sealed class SabrSession : IDisposable
         {
             _requestNumber++;
             rn = _requestNumber;
-            // Append &rn=N like iOS SABRFetcher
             url = _url.Contains('?') ? $"{_url}&rn={rn}" : $"{_url}?rn={rn}";
         }
 
         using var req = new HttpRequestMessage(HttpMethod.Post, url);
         req.Content = new ByteArrayContent(body);
         req.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-protobuf");
-        // TV Cobalt UA when using TV client
         var ua = _clientKind == SabrClientKind.Tv
             ? "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version"
             : "com.google.android.youtube/21.26.364 (Linux; U; Android 14) gzip";
@@ -231,17 +331,31 @@ public sealed class SabrSession : IDisposable
             {
                 _videoBuffer.Position = _videoBuffer.Length;
                 _videoBuffer.Write(seg, 0, seg.Length);
+                if (header is not null)
+                {
+                    var end = header.StartMs + header.DurationMs;
+                    if (end > _bufferedUntilVideoMs)
+                        _bufferedUntilVideoMs = end;
+                }
             }
             else
             {
                 _audioBuffer.Position = _audioBuffer.Length;
                 _audioBuffer.Write(seg, 0, seg.Length);
+                if (header is not null)
+                {
+                    var end = header.StartMs + header.DurationMs;
+                    if (end > _bufferedUntilAudioMs)
+                        _bufferedUntilAudioMs = end;
+                }
             }
         }
     }
 
     public void Dispose()
     {
+        StopPump();
+        _fetchGate.Dispose();
         _videoBuffer.Dispose();
         _audioBuffer.Dispose();
     }
