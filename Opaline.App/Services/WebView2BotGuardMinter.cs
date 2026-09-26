@@ -77,7 +77,8 @@ public sealed class WebView2BotGuardMinter : IBotGuardMinter, IDisposable
                 "Opaline", "WebView2BotGuard");
             Directory.CreateDirectory(ud);
 
-            var env = await CoreWebView2Environment.CreateAsync(userDataFolder: ud);
+            // CreateAsync(browserExecutableFolder, userDataFolder, options)
+            var env = await CoreWebView2Environment.CreateAsync(null, ud);
             await _webView.EnsureCoreWebView2Async(env);
 
             _core = _webView.CoreWebView2;
@@ -318,7 +319,7 @@ public sealed class WebView2BotGuardMinter : IBotGuardMinter, IDisposable
                 {
                     if (_core is not null)
                         _core.WebMessageReceived -= Core_WebMessageReceived;
-                    _webView?.Close();
+                    // webview disposed with window
                     _hostWindow?.Close();
                 }
                 catch { /* ignore */ }
