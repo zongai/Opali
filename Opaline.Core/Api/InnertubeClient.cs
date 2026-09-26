@@ -135,7 +135,124 @@ public sealed partial class InnertubeClient
         }, ClientIdentity.Android);
 
         var json = await PostAsync("player", body, ClientIdentity.Android, sendAuth: false, ct).ConfigureAwait(false);
-        return ParseWatchPage(json, videoId);
+        var page = ParseWatchPage(json, videoId);
+
+        // SABR needs serverAbr + ustreamerConfig; ANDROID sometimes omits both.
+        // Retry TV (preferred for SABR) then WEB to fill missing metadata.
+        if (string.IsNullOrEmpty(page.ServerAbrStreamingUrl)
+            || string.IsNullOrEmpty(page.VideoPlaybackUstreamerConfig))
+        {
+            page = await MergeSabrMetadataAsync(page, videoId, ClientIdentity.Tv, sendAuth: true, ct)
+                .ConfigureAwait(false);
+        }
+        if (string.IsNullOrEmpty(page.ServerAbrStreamingUrl)
+            || string.IsNullOrEmpty(page.VideoPlaybackUstreamerConfig))
+        {
+            page = await MergeSabrMetadataAsync(page, videoId, ClientIdentity.Web, sendAuth: false, ct)
+                .ConfigureAwait(false);
+        }
+        return page;
+    }
+
+    private async Task<WatchPage> MergeSabrMetadataAsync(
+        WatchPage page, string videoId, ClientIdentity client, bool sendAuth, CancellationToken ct)
+    {
+        try
+        {
+            var body = BuildContext(new
+            {
+                videoId,
+                contentCheckOk = true,
+                racyCheckOk = true
+            }, client);
+            var json = await PostAsync("player", body, client, sendAuth, ct).ConfigureAwait(false);
+            var alt = ParseWatchPage(json, videoId);
+            return MergeWatchSabr(page, alt);
+        }
+        catch
+        {
+            return page;
+        }
+    }
+
+    private static WatchPage MergeWatchSabr(WatchPage primary, WatchPage alt)
+    {
+        // Prefer non-empty SABR fields from alt; keep primary streams/metadata
+        var sabr = primary.ServerAbrStreamingUrl ?? alt.ServerAbrStreamingUrl;
+        var usc = primary.VideoPlaybackUstreamerConfig ?? alt.VideoPlaybackUstreamerConfig;
+        var onesie = primary.OnesieUstreamerConfig ?? alt.OnesieUstreamerConfig;
+        // If primary streams empty, take alt streams
+        var streams = primary.Streams.Count > 0 ? primary.Streams : alt.Streams;
+        var hls = primary.HlsManifestUrl ?? alt.HlsManifestUrl;
+        var dash = primary.DashManifestUrl ?? alt.DashManifestUrl;
+        if (sabr == primary.ServerAbrStreamingUrl
+            && usc == primary.VideoPlaybackUstreamerConfig
+            && onesie == primary.OnesieUstreamerConfig
+            && streams == primary.Streams)
+            return primary;
+
+        return new WatchPage
+        {
+            Video = primary.Video,
+            Streams = streams,
+            RelatedVideos = primary.RelatedVideos ?? alt.RelatedVideos,
+            LikeCount = primary.LikeCount ?? alt.LikeCount,
+            DislikeCount = primary.DislikeCount ?? alt.DislikeCount,
+            IsLiked = primary.IsLiked,
+            IsDisliked = primary.IsDisliked,
+            ContinuationToken = primary.ContinuationToken,
+            HlsManifestUrl = hls,
+            DashManifestUrl = dash,
+            ServerAbrStreamingUrl = sabr,
+            VideoPlaybackUstreamerConfig = usc,
+            OnesieUstreamerConfig = onesie,
+            CaptionTracks = primary.CaptionTracks.Count > 0 ? primary.CaptionTracks : alt.CaptionTracks,
+            VideoQualities = primary.VideoQualities.Count > 0 ? primary.VideoQualities : alt.VideoQualities,
+            AudioTracks = primary.AudioTracks.Count > 0 ? primary.AudioTracks : alt.AudioTracks
+        };
+    }
+
+    /// <summary>
+    /// Deep-scan player JSON for videoPlaybackUstreamerConfig / onesieUstreamerConfig
+    /// (not only the canonical mediaCommonConfig path).
+    /// </summary>
+    private static (string? Playback, string? Onesie) ExtractUstreamerConfigs(JsonNode json)
+    {
+        string? playback = json["playerConfig"]?["mediaCommonConfig"]?["mediaUstreamerRequestConfig"]
+            ?["videoPlaybackUstreamerConfig"]?.GetValue<string>();
+        string? onesie = json["playerConfig"]?["mediaCommonConfig"]?["mediaUstreamerRequestConfig"]
+            ?["onesieUstreamerConfig"]?.GetValue<string>();
+
+        if (!string.IsNullOrEmpty(playback) && !string.IsNullOrEmpty(onesie))
+            return (playback, onesie);
+
+        void Walk(JsonNode? n)
+        {
+            if (n is null) return;
+            if (n is JsonObject obj)
+            {
+                if (string.IsNullOrEmpty(playback)
+                    && obj.TryGetPropertyValue("videoPlaybackUstreamerConfig", out var vp)
+                    && vp is JsonValue)
+                    playback = vp.GetValue<string>();
+                if (string.IsNullOrEmpty(onesie)
+                    && obj.TryGetPropertyValue("onesieUstreamerConfig", out var op)
+                    && op is JsonValue)
+                    onesie = op.GetValue<string>();
+                if (string.IsNullOrEmpty(playback)
+                    && obj.TryGetPropertyValue("videoPlaybackUstreamerConfig", out var vp2)
+                    && vp2 is not null)
+                    playback ??= vp2.ToString()?.Trim('"');
+                foreach (var kv in obj)
+                    Walk(kv.Value);
+            }
+            else if (n is JsonArray arr)
+            {
+                foreach (var c in arr) Walk(c);
+            }
+        }
+        Walk(json);
+        return (playback, onesie);
     }
 
     // ── Search ───────────────────────────────────────────────────────────
@@ -308,8 +425,7 @@ public sealed partial class InnertubeClient
         var hls = streamingData?["hlsManifestUrl"]?.GetValue<string>();
         var dash = streamingData?["dashManifestUrl"]?.GetValue<string>();
         var sabr = streamingData?["serverAbrStreamingUrl"]?.GetValue<string>();
-        var ustreamer = json["playerConfig"]?["mediaCommonConfig"]?["mediaUstreamerRequestConfig"]
-            ?["videoPlaybackUstreamerConfig"]?.GetValue<string>();
+        var (ustreamer, onesie) = ExtractUstreamerConfigs(json);
 
         var captions = ParseCaptionTracks(json);
         var videoQualities = streams
@@ -331,6 +447,7 @@ public sealed partial class InnertubeClient
             DashManifestUrl = dash,
             ServerAbrStreamingUrl = sabr,
             VideoPlaybackUstreamerConfig = ustreamer,
+            OnesieUstreamerConfig = onesie,
             CaptionTracks = captions,
             VideoQualities = videoQualities,
             AudioTracks = audioTracks

@@ -21,6 +21,8 @@ public sealed class WatchPage
     public string? ServerAbrStreamingUrl { get; init; }
     /// <summary>Base64 videoPlaybackUstreamerConfig for SABR request body.</summary>
     public string? VideoPlaybackUstreamerConfig { get; init; }
+    /// <summary>Fallback ustreamer blob (onesie) when playback config absent.</summary>
+    public string? OnesieUstreamerConfig { get; init; }
 
     /// <summary>Available caption / subtitle tracks.</summary>
     public IReadOnlyList<CaptionTrack> CaptionTracks { get; init; } = Array.Empty<CaptionTrack>();

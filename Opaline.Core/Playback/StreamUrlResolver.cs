@@ -35,7 +35,8 @@ public sealed class StreamUrlResolver
 
         // SABR UMP demux → localhost fMP4 (when serverAbr + ustreamer present)
         if (!string.IsNullOrEmpty(page.ServerAbrStreamingUrl)
-            && !string.IsNullOrEmpty(page.VideoPlaybackUstreamerConfig))
+            && (!string.IsNullOrEmpty(page.VideoPlaybackUstreamerConfig)
+                || !string.IsNullOrEmpty(page.OnesieUstreamerConfig)))
         {
             try
             {

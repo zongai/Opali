@@ -41,10 +41,11 @@ public sealed class SabrDelivery : ISabrPlaybackController, IDisposable
             return null;
         }
 
-        var ustreamerB64 = page.VideoPlaybackUstreamerConfig;
+        var ustreamerB64 = page.VideoPlaybackUstreamerConfig
+            ?? page.OnesieUstreamerConfig;
         if (string.IsNullOrEmpty(ustreamerB64))
         {
-            LastError = "no videoPlaybackUstreamerConfig";
+            LastError = "no videoPlaybackUstreamerConfig/onesieUstreamerConfig";
             return null;
         }
 
