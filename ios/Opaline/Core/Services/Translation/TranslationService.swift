@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 
 /// Harbor-style translation chain: Google (free gtx) → MyMemory → Lingva.
 /// Optional DeepL via `OPALINE_DEEPL_KEY` / `DEEPL_API_KEY` environment.
@@ -33,6 +34,90 @@ enum TranslationError: LocalizedError {
     }
 }
 
+
+/// Canonical BCP-47-ish codes and per-engine mappings for accurate target
+/// language + source auto-detect.
+enum TranslationLanguageNorm {
+    /// App / settings → stable form used in cache keys and settings.
+    static func canonical(_ code: String) -> String {
+        switch code.lowercased() {
+        case "zh", "zh-hans", "zh-cn", "zh_hans", "zh_cn": return "zh-CN"
+        case "zh-hant", "zh-tw", "zh_hant", "zh_tw": return "zh-TW"
+        case "pt-br", "pt_br": return "pt"
+        case "nb", "nn": return "no"
+        default:
+            let lower = code.lowercased().replacingOccurrences(of: "_", with: "-")
+            // Keep primary subtag only (en-US → en), except zh already handled.
+            if let primary = lower.split(separator: "-").first {
+                return String(primary)
+            }
+            return lower
+        }
+    }
+
+    static func forGoogle(_ code: String) -> String {
+        switch canonical(code) {
+        case "zh-CN": return "zh-CN"
+        case "zh-TW": return "zh-TW"
+        default: return canonical(code).lowercased()
+        }
+    }
+
+    static func forMyMemory(_ code: String) -> String {
+        switch canonical(code) {
+        case "zh-CN": return "zh-CN"
+        case "zh-TW": return "zh-TW"
+        default: return canonical(code)
+        }
+    }
+
+    /// Lingva uses underscore form (zh_CN).
+    static func forLingva(_ code: String) -> String {
+        switch canonical(code) {
+        case "zh-CN": return "zh_CN"
+        case "zh-TW": return "zh_TW"
+        default: return canonical(code).replacingOccurrences(of: "-", with: "_").lowercased()
+        }
+    }
+
+    /// DeepL uppercase; ZH vs ZH-HANT for simplified/traditional.
+    static func forDeepL(_ code: String) -> String {
+        switch canonical(code) {
+        case "zh-CN": return "ZH"
+        case "zh-TW": return "ZH-HANT"
+        case "en": return "EN"
+        case "ja": return "JA"
+        case "ko": return "KO"
+        case "es": return "ES"
+        case "fr": return "FR"
+        case "de": return "DE"
+        case "ru": return "RU"
+        case "pt": return "PT-PT"
+        case "it": return "IT"
+        case "tr": return "TR"
+        case "uk": return "UK"
+        case "vi": return "VI"
+        case "id": return "ID"
+        case "ar": return "AR"
+        default: return canonical(code).uppercased()
+        }
+    }
+
+    /// Whether two codes refer to the same written language (for skip-translate).
+    static func isSameLanguage(_ a: String, _ b: String) -> Bool {
+        let ca = canonical(a)
+        let cb = canonical(b)
+        if ca == cb { return true }
+        let baseA = ca.split(separator: "-").first.map(String.init) ?? ca
+        let baseB = cb.split(separator: "-").first.map(String.init) ?? cb
+        if baseA == "zh" || baseB == "zh" {
+            return ca == cb
+        }
+        return baseA.lowercased() == baseB.lowercased()
+    }
+}
+
+
 final class TranslationService {
     static let shared = TranslationService()
 
@@ -52,12 +137,26 @@ final class TranslationService {
 
     /// App language only — used when settings follow system.
     static var preferredTargetFromAppLanguage: String {
-        let code = AppLanguage.effective.rawValue
-        switch code {
-        case "zh-Hans", "zh-CN", "zh": return "zh-CN"
-        case "zh-Hant", "zh-TW": return "zh-TW"
-        default: return code
+        TranslationLanguageNorm.canonical(AppLanguage.effective.rawValue)
+    }
+
+    /// NLLanguageRecognizer + script heuristics for auto source language.
+    static func detectSourceLanguage(of text: String) -> String? {
+        let sample = String(text.prefix(400))
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(sample)
+        if let lang = recognizer.dominantLanguage {
+            return TranslationLanguageNorm.canonical(lang.rawValue)
         }
+        let han = sample.unicodeScalars.filter { (0x4E00...0x9FFF).contains($0.value) }.count
+        if han >= max(3, sample.count / 4) {
+            let pref = preferredTarget
+            if TranslationLanguageNorm.canonical(pref).hasPrefix("zh") {
+                return TranslationLanguageNorm.canonical(pref)
+            }
+            return "zh-CN"
+        }
+        return nil
     }
 
     func translate(
@@ -70,13 +169,20 @@ final class TranslationService {
             completion(.failure(TranslationError.empty))
             return
         }
-        let key = "\(target)|\(trimmed)" as NSString
+        let normalizedTarget = TranslationLanguageNorm.canonical(target)
+        // Client-side detect: skip when already in the target language.
+        if let detected = Self.detectSourceLanguage(of: trimmed),
+           TranslationLanguageNorm.isSameLanguage(detected, normalizedTarget) {
+            completion(.success(trimmed))
+            return
+        }
+        let key = "\(normalizedTarget)|\(trimmed)" as NSString
         if let hit = cache.object(forKey: key) {
             completion(.success(hit as String))
             return
         }
         let engines = TranslationPreferences.engineChain
-        tryEngines(engines, text: trimmed, target: target, key: key, completion: completion)
+        tryEngines(engines, text: trimmed, target: normalizedTarget, key: key, completion: completion)
     }
 
     func translateMany(
@@ -232,10 +338,11 @@ final class TranslationService {
         _ completion: @escaping (Result<String, Error>) -> Void
     ) {
         var comps = URLComponents(string: "https://translate.googleapis.com/translate_a/single")!
+        let tl = TranslationLanguageNorm.forGoogle(target)
         comps.queryItems = [
             URLQueryItem(name: "client", value: "gtx"),
             URLQueryItem(name: "sl", value: "auto"),
-            URLQueryItem(name: "tl", value: target),
+            URLQueryItem(name: "tl", value: tl),
             URLQueryItem(name: "dt", value: "t"),
             URLQueryItem(name: "q", value: text)
         ]
@@ -267,6 +374,12 @@ final class TranslationService {
                     out += s
                 }
             }
+            // Response index 2 is the auto-detected source language.
+            if json.count > 2, let detected = json[2] as? String,
+               TranslationLanguageNorm.isSameLanguage(detected, target) {
+                completion(.success(text))
+                return
+            }
             completion(.success(out))
         }.resume()
     }
@@ -285,7 +398,7 @@ final class TranslationService {
         _ target: String,
         _ completion: @escaping (Result<String, Error>) -> Void
     ) {
-        let tl = Self.normalizeMyMemory(target)
+        let tl = TranslationLanguageNorm.forMyMemory(target)
         var comps = URLComponents(string: "https://api.mymemory.translated.net/get")!
         comps.queryItems = [
             URLQueryItem(name: "q", value: String(text.prefix(500))),
@@ -329,7 +442,7 @@ final class TranslationService {
         _ target: String,
         _ completion: @escaping (Result<String, Error>) -> Void
     ) {
-        let tl = target.replacingOccurrences(of: "-", with: "_").lowercased()
+        let tl = TranslationLanguageNorm.forLingva(target)
         let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? text
         guard let url = URL(string: "https://lingva.ml/api/v1/auto/\(tl)/\(encoded)") else {
             completion(.failure(TranslationError.failed("Bad Lingva URL")))
@@ -471,9 +584,8 @@ final class TranslationService {
         req.httpMethod = "POST"
         req.setValue("DeepL-Auth-Key \(apiKey)", forHTTPHeaderField: "Authorization")
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        let tl = target.uppercased()
-            .replacingOccurrences(of: "ZH-CN", with: "ZH")
-            .replacingOccurrences(of: "ZH-TW", with: "ZH")
+        let tl = TranslationLanguageNorm.forDeepL(target)
+        // Omit source_lang → DeepL auto-detects source language.
         let body = "text=\(text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text)&target_lang=\(tl)"
         req.httpBody = body.data(using: .utf8)
         session.dataTask(with: req) { data, response, error in

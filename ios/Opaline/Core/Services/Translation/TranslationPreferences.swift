@@ -207,11 +207,7 @@ enum TranslationPreferences {
     }
 
     static func normalizeTarget(_ code: String) -> String {
-        switch code.lowercased() {
-        case "zh", "zh-hans", "zh-cn": return "zh-CN"
-        case "zh-hant", "zh-tw": return "zh-TW"
-        default: return code
-        }
+        TranslationLanguageNorm.canonical(code)
     }
 
     /// Curated target list for the picker.
