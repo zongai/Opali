@@ -157,4 +157,10 @@ public sealed partial class WatchPage : Page
         if (e.ClickedItem is PlaylistAddOption opt)
             await ViewModel.AddToPlaylistAsync(opt);
     }
+
+    private async void Related_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is Video v && !string.IsNullOrEmpty(v.Id))
+            await ViewModel.LoadAsync(v.Id);
+    }
 }

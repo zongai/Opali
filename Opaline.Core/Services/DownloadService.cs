@@ -11,6 +11,8 @@ public interface IDownloadService
     void DeleteDownload(string videoId);
     string? TryGetLocalMediaPath(string videoId);
     bool HasOffline(string videoId);
+    void SaveWatchSnapshot(OfflineWatchSnapshot snapshot);
+    OfflineWatchSnapshot? TryLoadWatchSnapshot(string videoId);
 }
 
 public sealed class DownloadedItem
@@ -114,6 +116,12 @@ public sealed class DownloadService : IDownloadService
         foreach (var m in match)
         {
             try { if (File.Exists(m.FilePath)) File.Delete(m.FilePath); } catch { /* ignore */ }
+            try
+            {
+                var meta = Path.Combine(_root, $"{m.VideoId}.watch.json");
+                if (File.Exists(meta)) File.Delete(meta);
+            }
+            catch { /* ignore */ }
             items.Remove(m);
         }
         File.WriteAllText(_indexPath, System.Text.Json.JsonSerializer.Serialize(items));

@@ -80,6 +80,8 @@ public partial class WatchViewModel : ObservableObject
 
     public ObservableCollection<SponsorBlockSegment> Segments { get; } = new();
     public ObservableCollection<CommentThread> Comments { get; } = new();
+    public ObservableCollection<Video> RelatedVideos { get; } = new();
+    [ObservableProperty] private bool servedOffline;
     public ObservableCollection<CaptionTrack> Captions { get; } = new();
     public ObservableCollection<StreamInfo> Qualities { get; } = new();
 
@@ -97,16 +99,29 @@ public partial class WatchViewModel : ObservableObject
     {
         try
         {
-            var path = _downloads.TryGetLocalMediaPath(videoId);
-            if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return false;
+            var offline = new OfflineWatchService(
+                App.Services.GetRequiredService<Opaline.Core.Api.InnertubeClient>(),
+                _downloads).TryLoadOffline(videoId);
+            if (offline is null) return false;
+            var (page, path, _) = offline.Value;
+            _page = page;
+            Video = page.Video;
+            DisplayTitle = page.Video.Title ?? videoId;
+            DisplayChannel = page.Video.ChannelTitle ?? "";
+            LikeCount = page.LikeCount;
+            DislikeCount = page.DislikeCount;
+            RelatedVideos.Clear();
+            if (page.RelatedVideos is not null)
+            {
+                foreach (var rv in page.RelatedVideos)
+                    RelatedVideos.Add(rv);
+            }
             PlayableUrl = path;
             AudioUrl = null;
             IsManifest = false;
             StreamKindLabel = "Offline";
             QualityLabel = "Offline";
-            if (Video is null)
-                Video = new Video { Id = videoId, Title = videoId };
-            DisplayTitle = Video.Title ?? videoId;
+            ServedOffline = true;
             return true;
         }
         catch { return false; }
@@ -121,6 +136,8 @@ public partial class WatchViewModel : ObservableObject
         AudioUrl = null;
         Segments.Clear();
         Comments.Clear();
+            RelatedVideos.Clear();
+            ServedOffline = false;
         Captions.Clear();
         Qualities.Clear();
         CaptionText = null;
@@ -136,6 +153,12 @@ public partial class WatchViewModel : ObservableObject
                 ? (vc >= 1_000_000 ? $"{vc / 1_000_000.0:0.#}M views" : vc >= 1_000 ? $"{vc / 1_000.0:0.#}K views" : $"{vc} views")
                 : "";
             _history.AddToHistory(Video);
+            if (_page.RelatedVideos is not null)
+            {
+                foreach (var rv in _page.RelatedVideos)
+                    RelatedVideos.Add(rv);
+            }
+
             _queue.PlayNow(Video);
 
             foreach (var c in _page.CaptionTracks)
@@ -212,6 +235,8 @@ public partial class WatchViewModel : ObservableObject
         {
             var page = await _yt.GetCommentsAsync(videoId);
             Comments.Clear();
+            RelatedVideos.Clear();
+            ServedOffline = false;
             foreach (var c in page.Comments.Take(50))
                 Comments.Add(c);
         }
@@ -346,6 +371,25 @@ public partial class WatchViewModel : ObservableObject
             var path = await _downloads.DownloadVideoAsync(
                 Video, PlayableUrl!,
                 new Progress<double>(p => DownloadProgress = p));
+            if (_page is not null)
+            {
+                try
+                {
+                    var snap = OfflineWatchSnapshot.FromWatchPage(_page);
+                    // Prefer on-device downloads as related for offline rail
+                    snap.RelatedVideos = RelatedVideos
+                        .Select(r => new OfflineRelatedItem
+                        {
+                            VideoId = r.Id,
+                            Title = r.Title ?? r.Id,
+                            ChannelTitle = r.ChannelTitle,
+                            ThumbnailUrl = r.ThumbnailUrl,
+                            ViewCount = r.ViewCount
+                        }).ToList();
+                    _downloads.SaveWatchSnapshot(snap);
+                }
+                catch { /* ignore meta */ }
+            }
             DownloadStatus = $"Saved: {path}";
         }
         catch (Exception ex)
@@ -460,6 +504,8 @@ public partial class WatchViewModel : ObservableObject
             // Force UI refresh
             var snapshot = Comments.ToList();
             Comments.Clear();
+            RelatedVideos.Clear();
+            ServedOffline = false;
             foreach (var c in snapshot)
                 Comments.Add(c);
             TranslateStatus = $"已翻译 {translated.Count} 条评论 (Harbor: Google→MyMemory→Lingva)";

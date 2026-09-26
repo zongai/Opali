@@ -44,3 +44,8 @@
 - `FetchAudioTrackListAsync` via IOS `/player` (no pot), distinct audioTrack.id
 - `AutoDubProbe` deadline (~400ms) races listing; `AutoDubPreference.AutoDubTrack`
 - Original = `*.4`, AI dub = `*.10`; StreamUrlResolver commits preferred track id before adaptive resolve
+
+## Offline WatchPage JSON + local related
+- Download saves `{id}.watch.json` (OfflineWatchSnapshot) beside media
+- Network fail → TryLoadOffline: snapshot metadata + local file stream
+- Related rail offline = other on-device downloads (iOS offlineShaped)
