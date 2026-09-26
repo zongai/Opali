@@ -1,27 +1,109 @@
+using Opaline.Core.Models;
+using Opaline.Core.Playback.Sabr;
 using System.Net;
 using System.Text;
 
 namespace Opaline.Core.Playback;
 
 /// <summary>
-/// SABR delivery scaffold (iOS SABRDelivery + LocalMediaServer).
-/// Full UMP demux is not yet ported; this hosts a localhost proxy that:
-/// 1) Prefer HLS/DASH if the player already exposed them
-/// 2) Otherwise reverse-proxies the first progressive URL
-/// 3) Records serverAbrStreamingUrl for a future UMP pipeline
+/// SABR delivery with UMP demux (iOS SABRDelivery + LocalMediaServer).
+/// Hosts localhost endpoints serving demuxed fMP4 video/audio buffers.
 /// </summary>
 public sealed class SabrDelivery : IDisposable
 {
     private HttpListener? _listener;
-    private readonly HttpClient _http = new();
+    private SabrSession? _session;
     private int _port;
-    private string? _upstream;
+    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(45) };
+    private CancellationTokenSource? _cts;
 
-    public bool IsSupported => true; // localhost proxy path is available
-    public bool IsUmpImplemented => false;
+    public bool IsSupported => true;
+    public bool IsUmpImplemented => true;
     public string? ServerAbrStreamingUrl { get; private set; }
-    public string? LocalManifestUrl { get; private set; }
+    public string? LocalVideoUrl { get; private set; }
+    public string? LocalAudioUrl { get; private set; }
+    public string? LastError { get; private set; }
 
+    /// <summary>
+    /// Start UMP session and local server. Returns local video URL when demux produces bytes.
+    /// </summary>
+    public async Task<string?> TryStartUmpAsync(
+        WatchPage page,
+        byte[]? poToken = null,
+        CancellationToken ct = default)
+    {
+        ServerAbrStreamingUrl = page.ServerAbrStreamingUrl;
+        if (string.IsNullOrEmpty(page.ServerAbrStreamingUrl))
+        {
+            LastError = "no serverAbrStreamingUrl";
+            return null;
+        }
+
+        var ustreamerB64 = page.VideoPlaybackUstreamerConfig;
+        if (string.IsNullOrEmpty(ustreamerB64))
+        {
+            LastError = "no videoPlaybackUstreamerConfig";
+            return null;
+        }
+
+        byte[] ustreamer;
+        try
+        {
+            // web-safe base64
+            var s = ustreamerB64.Replace('-', '+').Replace('_', '/');
+            switch (s.Length % 4) { case 2: s += "=="; break; case 3: s += "="; break; }
+            ustreamer = Convert.FromBase64String(s);
+        }
+        catch (Exception ex)
+        {
+            LastError = "ustreamerConfig decode: " + ex.Message;
+            return null;
+        }
+
+        var videoFmt = SelectVideoFormat(page);
+        var audioFmt = SelectAudioFormat(page);
+        if (videoFmt is null || audioFmt is null)
+        {
+            LastError = "missing adaptive itags for SABR";
+            return null;
+        }
+
+        Stop();
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _session = new SabrSession(
+            _http,
+            page.ServerAbrStreamingUrl!,
+            ustreamer,
+            videoFmt,
+            audioFmt,
+            poToken);
+
+        try
+        {
+            await _session.StartAsync(_cts.Token).ConfigureAwait(false);
+            await _session.PrefetchAsync(0, _cts.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LastError = "SABR session: " + ex.Message;
+            return null;
+        }
+
+        if (_session.VideoLength == 0)
+        {
+            LastError = _session.LastError ?? "UMP produced no video media";
+            return null;
+        }
+
+        _port = await StartListenerAsync(_cts.Token).ConfigureAwait(false);
+        LocalVideoUrl = $"http://127.0.0.1:{_port}/sabr/video.mp4";
+        LocalAudioUrl = _session.AudioLength > 0
+            ? $"http://127.0.0.1:{_port}/sabr/audio.mp4"
+            : null;
+        return LocalVideoUrl;
+    }
+
+    /// <summary>Legacy progressive proxy fallback.</summary>
     public async Task<string?> TryCreateLocalManifestAsync(
         string videoId,
         string? serverAbrUrl,
@@ -29,31 +111,53 @@ public sealed class SabrDelivery : IDisposable
         string? progressiveUrl,
         CancellationToken ct = default)
     {
-        ServerAbrStreamingUrl = serverAbrUrl;
+        if (!string.IsNullOrEmpty(hlsUrl)) return hlsUrl;
+        if (string.IsNullOrEmpty(progressiveUrl)) return serverAbrUrl;
+        // simple pass-through — UMP path is TryStartUmpAsync
+        return progressiveUrl;
+    }
 
-        // Prefer real HLS (native AdaptiveMediaSource)
-        if (!string.IsNullOrEmpty(hlsUrl))
+    private static SabrFormatInfo? SelectVideoFormat(WatchPage page)
+    {
+        var s = page.Streams
+            .Where(x => x.IsVideoOnly || (x.Height is > 0 && !x.IsAudioOnly))
+            .Where(x => x.Itag is > 0)
+            .OrderByDescending(x => x.Height ?? 0)
+            .ThenByDescending(x => x.Bitrate ?? 0)
+            .FirstOrDefault();
+        if (s is null) return null;
+        return new SabrFormatInfo
         {
-            LocalManifestUrl = hlsUrl;
-            return hlsUrl;
-        }
+            Itag = s.Itag ?? 0,
+            LastModified = s.LastModified,
+            MimeType = s.MimeType,
+            Bitrate = s.Bitrate,
+            Width = s.Width,
+            Height = s.Height
+        };
+    }
 
-        var upstream = progressiveUrl ?? serverAbrUrl;
-        if (string.IsNullOrEmpty(upstream))
-            return null;
-
-        Stop();
-        _upstream = upstream;
-        _port = await StartListenerAsync(ct).ConfigureAwait(false);
-        LocalManifestUrl = $"http://127.0.0.1:{_port}/media/{Uri.EscapeDataString(videoId)}";
-        return LocalManifestUrl;
+    private static SabrFormatInfo? SelectAudioFormat(WatchPage page)
+    {
+        var s = page.Streams
+            .Where(x => x.IsAudioOnly)
+            .Where(x => x.Itag is > 0)
+            .OrderByDescending(x => x.Bitrate ?? 0)
+            .FirstOrDefault();
+        if (s is null) return null;
+        return new SabrFormatInfo
+        {
+            Itag = s.Itag ?? 0,
+            LastModified = s.LastModified,
+            MimeType = s.MimeType,
+            Bitrate = s.Bitrate
+        };
     }
 
     private async Task<int> StartListenerAsync(CancellationToken ct)
     {
-        // Try a few ports
         Exception? last = null;
-        for (var port = 18765; port < 18775; port++)
+        for (var port = 18765; port < 18785; port++)
         {
             try
             {
@@ -64,12 +168,9 @@ public sealed class SabrDelivery : IDisposable
                 _ = Task.Run(() => AcceptLoop(l, ct), ct);
                 return port;
             }
-            catch (Exception ex)
-            {
-                last = ex;
-            }
+            catch (Exception ex) { last = ex; }
         }
-        throw new InvalidOperationException("SABR local proxy: no free port", last);
+        throw new InvalidOperationException("SABR local server: no free port", last);
     }
 
     private async Task AcceptLoop(HttpListener listener, CancellationToken ct)
@@ -79,52 +180,75 @@ public sealed class SabrDelivery : IDisposable
             HttpListenerContext ctx;
             try { ctx = await listener.GetContextAsync().ConfigureAwait(false); }
             catch { break; }
+            _ = Task.Run(() => Serve(ctx), ct);
+        }
+    }
 
-            _ = Task.Run(async () =>
+    private void Serve(HttpListenerContext ctx)
+    {
+        try
+        {
+            var path = ctx.Request.Url?.AbsolutePath ?? "";
+            var isAudio = path.Contains("audio", StringComparison.OrdinalIgnoreCase);
+            var session = _session;
+            if (session is null)
             {
-                try
-                {
-                    if (_upstream is null)
-                    {
-                        ctx.Response.StatusCode = 503;
-                        ctx.Response.Close();
-                        return;
-                    }
+                ctx.Response.StatusCode = 503;
+                ctx.Response.Close();
+                return;
+            }
 
-                    using var upstreamReq = new HttpRequestMessage(HttpMethod.Get, _upstream);
-                    // Forward Range if present (seek)
-                    var range = ctx.Request.Headers["Range"];
-                    if (!string.IsNullOrEmpty(range))
-                        upstreamReq.Headers.TryAddWithoutValidation("Range", range);
+            var total = isAudio ? session.AudioLength : session.VideoLength;
+            long start = 0, end = total - 1;
+            var range = ctx.Request.Headers["Range"];
+            if (!string.IsNullOrEmpty(range) && range.StartsWith("bytes=", StringComparison.OrdinalIgnoreCase))
+            {
+                var spec = range["bytes=".Length..];
+                var parts = spec.Split('-');
+                if (long.TryParse(parts[0], out var s)) start = s;
+                if (parts.Length > 1 && long.TryParse(parts[1], out var e)) end = e;
+                end = Math.Min(end, total - 1);
+                ctx.Response.StatusCode = 206;
+                ctx.Response.Headers["Content-Range"] = $"bytes {start}-{end}/{total}";
+            }
+            else
+            {
+                ctx.Response.StatusCode = 200;
+            }
 
-                    using var upstreamResp = await _http.SendAsync(
-                        upstreamReq, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            var length = (int)Math.Max(0, end - start + 1);
+            ctx.Response.ContentType = "video/mp4";
+            ctx.Response.ContentLength64 = length;
+            ctx.Response.Headers["Accept-Ranges"] = "bytes";
 
-                    ctx.Response.StatusCode = (int)upstreamResp.StatusCode;
-                    if (upstreamResp.Content.Headers.ContentType is not null)
-                        ctx.Response.ContentType = upstreamResp.Content.Headers.ContentType.ToString();
-                    if (upstreamResp.Content.Headers.ContentLength is long cl)
-                        ctx.Response.ContentLength64 = cl;
-                    if (upstreamResp.Headers.Contains("Accept-Ranges"))
-                        ctx.Response.Headers["Accept-Ranges"] = "bytes";
-
-                    await using var src = await upstreamResp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                    await src.CopyToAsync(ctx.Response.OutputStream, ct).ConfigureAwait(false);
-                    ctx.Response.Close();
-                }
-                catch
-                {
-                    try { ctx.Response.StatusCode = 502; ctx.Response.Close(); } catch { /* ignore */ }
-                }
-            }, ct);
+            var buf = new byte[Math.Min(length, 64 * 1024)];
+            var remaining = length;
+            var offset = start;
+            while (remaining > 0)
+            {
+                var n = isAudio
+                    ? session.ReadAudio(offset, buf, Math.Min(buf.Length, remaining))
+                    : session.ReadVideo(offset, buf, Math.Min(buf.Length, remaining));
+                if (n <= 0) break;
+                ctx.Response.OutputStream.Write(buf, 0, n);
+                offset += n;
+                remaining -= n;
+            }
+            ctx.Response.Close();
+        }
+        catch
+        {
+            try { ctx.Response.StatusCode = 500; ctx.Response.Close(); } catch { /* */ }
         }
     }
 
     public void Stop()
     {
-        try { _listener?.Stop(); } catch { /* ignore */ }
-        try { _listener?.Close(); } catch { /* ignore */ }
+        try { _cts?.Cancel(); } catch { /* */ }
+        try { _listener?.Stop(); _listener?.Close(); } catch { /* */ }
         _listener = null;
+        _session?.Dispose();
+        _session = null;
     }
 
     public void Dispose()

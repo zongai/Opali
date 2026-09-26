@@ -33,6 +33,48 @@ public sealed class StreamUrlResolver
         _ = await _sts.GetAsync(ct).ConfigureAwait(false);
         await _solver.EnsurePlayerJsAsync(page.Video.Id, ct).ConfigureAwait(false);
 
+        // SABR UMP demux → localhost fMP4 (when serverAbr + ustreamer present)
+        if (!string.IsNullOrEmpty(page.ServerAbrStreamingUrl)
+            && !string.IsNullOrEmpty(page.VideoPlaybackUstreamerConfig))
+        {
+            try
+            {
+                var pot = await _poToken.FetchAsync(page.Video.Id, "ANDROID", ct).ConfigureAwait(false);
+                byte[]? potBytes = null;
+                if (!string.IsNullOrEmpty(pot))
+                {
+                    try
+                    {
+                        var s = pot!.Replace('-', '+').Replace('_', '/');
+                        switch (s.Length % 4) { case 2: s += "=="; break; case 3: s += "="; break; }
+                        potBytes = Convert.FromBase64String(s);
+                    }
+                    catch { /* ignore pot decode */ }
+                }
+                var local = await _sabr.TryStartUmpAsync(page, potBytes, ct).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(local))
+                {
+                    return new ResolvedStream(
+                        PrimaryUrl: local!,
+                        Video: new StreamInfo { Url = local!, MimeType = "video/mp4", QualityLabel = "SABR-UMP" },
+                        Audio: string.IsNullOrEmpty(_sabr.LocalAudioUrl) ? null : new StreamInfo
+                        {
+                            Url = _sabr.LocalAudioUrl!,
+                            MimeType = "audio/mp4",
+                            IsAudioOnly = true,
+                            QualityLabel = "SABR-audio"
+                        },
+                        IsProgressive: _sabr.LocalAudioUrl is null,
+                        Kind: _sabr.LocalAudioUrl is null ? StreamKind.Progressive : StreamKind.AdaptivePair);
+                }
+            }
+            catch
+            {
+                // fall through to HLS / progressive
+            }
+        }
+
+
         // 1) Prefer server HLS / DASH manifests (native AdaptiveMediaSource on Windows)
         if (!string.IsNullOrEmpty(page.HlsManifestUrl))
         {

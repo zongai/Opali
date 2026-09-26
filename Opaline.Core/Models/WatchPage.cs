@@ -19,6 +19,8 @@ public sealed class WatchPage
     public string? DashManifestUrl { get; init; }
     /// <summary>SABR UMP endpoint from streamingData.serverAbrStreamingUrl.</summary>
     public string? ServerAbrStreamingUrl { get; init; }
+    /// <summary>Base64 videoPlaybackUstreamerConfig for SABR request body.</summary>
+    public string? VideoPlaybackUstreamerConfig { get; init; }
 
     /// <summary>Available caption / subtitle tracks.</summary>
     public IReadOnlyList<CaptionTrack> CaptionTracks { get; init; } = Array.Empty<CaptionTrack>();
@@ -53,6 +55,7 @@ public sealed class StreamInfo
 
     /// <summary>Raw n-parameter from the URL, if present (pre-solve).</summary>
     public string? NParam { get; init; }
+    public string? LastModified { get; init; }
 
     public string DisplayLabel => QualityLabel
         ?? (Height is { } h ? $"{h}p" : (IsAudioOnly ? "Audio" : "Unknown"));

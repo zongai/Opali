@@ -308,6 +308,8 @@ public sealed partial class InnertubeClient
         var hls = streamingData?["hlsManifestUrl"]?.GetValue<string>();
         var dash = streamingData?["dashManifestUrl"]?.GetValue<string>();
         var sabr = streamingData?["serverAbrStreamingUrl"]?.GetValue<string>();
+        var ustreamer = json["playerConfig"]?["mediaCommonConfig"]?["mediaUstreamerRequestConfig"]
+            ?["videoPlaybackUstreamerConfig"]?.GetValue<string>();
 
         var captions = ParseCaptionTracks(json);
         var videoQualities = streams
@@ -328,6 +330,7 @@ public sealed partial class InnertubeClient
             HlsManifestUrl = hls,
             DashManifestUrl = dash,
             ServerAbrStreamingUrl = sabr,
+            VideoPlaybackUstreamerConfig = ustreamer,
             CaptionTracks = captions,
             VideoQualities = videoQualities,
             AudioTracks = audioTracks
@@ -729,7 +732,8 @@ public sealed partial class InnertubeClient
             Itag = f["itag"]?.GetValue<int>(),
             SigChallenge = sigChallenge,
             SigParam = sigParam,
-            NParam = nParam
+            NParam = nParam,
+            LastModified = f["lastModified"]?.GetValue<string>()
         };
     }
 
