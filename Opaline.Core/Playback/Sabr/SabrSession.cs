@@ -3,8 +3,8 @@ using System.Net.Http.Headers;
 namespace Opaline.Core.Playback.Sabr;
 
 /// <summary>
-/// One SABR playback session: startup + sequential segment fetches with UMP demux.
-/// Accumulates init + media into a continuous fMP4 buffer for local serving.
+/// SABR session with TV sabrAbrState + playback cookie round-trip
+/// (iOS SABRFetcher / SABRSegmentCollector policy).
 /// </summary>
 public sealed class SabrSession : IDisposable
 {
@@ -13,12 +13,15 @@ public sealed class SabrSession : IDisposable
     private readonly byte[] _ustreamerConfig;
     private readonly SabrFormatInfo _video;
     private readonly SabrFormatInfo _audio;
-    private readonly byte[] _clientInfo;
+    private readonly SabrClientKind _clientKind;
     private readonly byte[]? _poToken;
     private string _url;
     private byte[]? _playbackCookie;
+    private int _backoffMs;
+    private int _requestNumber;
     private SabrBufferedRange? _heldVideo;
     private SabrBufferedRange? _heldAudio;
+    private readonly Dictionary<int, int> _lastRequestedMs = new();
     private readonly MemoryStream _videoBuffer = new();
     private readonly MemoryStream _audioBuffer = new();
     private readonly object _lock = new();
@@ -30,7 +33,8 @@ public sealed class SabrSession : IDisposable
         byte[] ustreamerConfig,
         SabrFormatInfo video,
         SabrFormatInfo audio,
-        byte[]? poToken = null)
+        byte[]? poToken = null,
+        SabrClientKind clientKind = SabrClientKind.Tv)
     {
         _http = http;
         _serverAbrUrl = serverAbrUrl;
@@ -38,23 +42,24 @@ public sealed class SabrSession : IDisposable
         _ustreamerConfig = ustreamerConfig;
         _video = video;
         _audio = audio;
-        _clientInfo = SabrRequestBuilder.ClientInfoAndroid();
         _poToken = poToken;
+        _clientKind = clientKind;
     }
 
     public long VideoLength { get { lock (_lock) return _videoBuffer.Length; } }
     public long AudioLength { get { lock (_lock) return _audioBuffer.Length; } }
     public bool IsUmpActive => _started;
     public string? LastError { get; private set; }
+    public int CookieBytes => _playbackCookie?.Length ?? 0;
+    public SabrClientKind ClientKind => _clientKind;
 
     public async Task StartAsync(CancellationToken ct = default)
     {
         if (_started) return;
         var body = SabrRequestBuilder.Startup(
-            _ustreamerConfig, _audio, _video, _clientInfo, _poToken, _playbackCookie);
+            _ustreamerConfig, _audio, _video, _clientKind, _poToken, _playbackCookie);
         var collector = await PostAsync(body, ct).ConfigureAwait(false);
         AppendMedia(collector);
-        // Follow with explicit init for video then audio if startup did not fill
         if (VideoLength == 0)
             await FetchSegmentAsync(_video, _audio, isInit: true, playerMs: 0, ct).ConfigureAwait(false);
         if (AudioLength == 0)
@@ -67,9 +72,9 @@ public sealed class SabrSession : IDisposable
         if (!_started)
             await StartAsync(ct).ConfigureAwait(false);
 
-        // Pull a few media segments for each track
         for (var i = 0; i < 6; i++)
         {
+            await RespectBackoffAsync(ct).ConfigureAwait(false);
             await FetchSegmentAsync(_video, _audio, isInit: false, playerMs: targetPlayerMs, ct).ConfigureAwait(false);
             await FetchSegmentAsync(_audio, _video, isInit: false, playerMs: targetPlayerMs, ct).ConfigureAwait(false);
             targetPlayerMs += 2000;
@@ -108,23 +113,62 @@ public sealed class SabrSession : IDisposable
         }
     }
 
+    private async Task RespectBackoffAsync(CancellationToken ct)
+    {
+        int ms;
+        lock (_lock) ms = _backoffMs;
+        if (ms > 0)
+        {
+            await Task.Delay(ms, ct).ConfigureAwait(false);
+            lock (_lock) _backoffMs = 0;
+        }
+    }
+
     private async Task FetchSegmentAsync(
         SabrFormatInfo format, SabrFormatInfo other, bool isInit, int playerMs, CancellationToken ct)
     {
-        var held = (format.Height ?? 0) > 0 ? _heldVideo : _heldAudio;
+        var itag = format.Itag;
+        SabrBufferedRange? held;
+        byte[]? cookie;
+        lock (_lock)
+        {
+            // Seek backwards: drop held range (iOS SABRFetcher)
+            if (_lastRequestedMs.TryGetValue(itag, out var last) && playerMs < last)
+            {
+                if ((format.Height ?? 0) > 0) _heldVideo = null;
+                else _heldAudio = null;
+            }
+            _lastRequestedMs[itag] = playerMs;
+            held = (format.Height ?? 0) > 0 ? _heldVideo : _heldAudio;
+            cookie = _playbackCookie;
+        }
+
         var body = SabrRequestBuilder.Segment(
-            _ustreamerConfig, format, other, isInit, playerMs, held, _clientInfo, _poToken, _playbackCookie);
+            _ustreamerConfig, format, other, isInit, playerMs, held, _clientKind, _poToken, cookie);
         var collector = await PostAsync(body, ct).ConfigureAwait(false);
         AppendMedia(collector);
     }
 
     private async Task<SabrSegmentCollector> PostAsync(byte[] body, CancellationToken ct)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Post, _url);
+        int rn;
+        string url;
+        lock (_lock)
+        {
+            _requestNumber++;
+            rn = _requestNumber;
+            // Append &rn=N like iOS SABRFetcher
+            url = _url.Contains('?') ? $"{_url}&rn={rn}" : $"{_url}?rn={rn}";
+        }
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, url);
         req.Content = new ByteArrayContent(body);
         req.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-protobuf");
-        req.Headers.TryAddWithoutValidation("User-Agent",
-            "com.google.android.youtube/21.26.364 (Linux; U; Android 14) gzip");
+        // TV Cobalt UA when using TV client
+        var ua = _clientKind == SabrClientKind.Tv
+            ? "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version"
+            : "com.google.android.youtube/21.26.364 (Linux; U; Android 14) gzip";
+        req.Headers.TryAddWithoutValidation("User-Agent", ua);
 
         using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct)
             .ConfigureAwait(false);
@@ -133,23 +177,39 @@ public sealed class SabrSession : IDisposable
         collector.Append(bytes);
         collector.CompleteIfHasMedia();
 
+        ApplyPolicy(collector.Policy);
+
         if (!string.IsNullOrEmpty(collector.RedirectUrl))
-            _url = collector.RedirectUrl!;
+        {
+            lock (_lock) _url = collector.RedirectUrl!;
+        }
         if (!string.IsNullOrEmpty(collector.ErrorDetail))
             LastError = collector.ErrorDetail;
 
-        // Extract playback cookie from nextRequestPolicy if present (field 1)
-        // skipped — optional for first segments
-
         if (collector.DeliveredRange is { } range)
         {
-            if ((range.Format.Itag == _video.Itag) || (range.Format.Height ?? 0) > 0)
-                _heldVideo = range;
-            else
-                _heldAudio = range;
+            lock (_lock)
+            {
+                if (range.Format.Itag == _video.Itag || (range.Format.Height ?? 0) > 0)
+                    _heldVideo = range;
+                else
+                    _heldAudio = range;
+            }
         }
 
         return collector;
+    }
+
+    private void ApplyPolicy(SabrPolicy? policy)
+    {
+        if (policy is null) return;
+        lock (_lock)
+        {
+            if (policy.PlaybackCookie is { Length: > 0 })
+                _playbackCookie = policy.PlaybackCookie;
+            if (policy.BackoffMs > 0)
+                _backoffMs = policy.BackoffMs;
+        }
     }
 
     private void AppendMedia(SabrSegmentCollector collector)
@@ -157,15 +217,12 @@ public sealed class SabrSession : IDisposable
         var seg = collector.Segment;
         if (seg is null || seg.Length == 0) return;
         var header = collector.Header;
-        var isVideo = header is null
-            || header.Itag == _video.Itag
-            || (header.Itag != _audio.Itag && (header.Itag > 100 || (_video.Height ?? 0) > 0));
-
-        // Prefer itag match
+        var isVideo = true;
         if (header is not null)
         {
             if (header.Itag == _audio.Itag) isVideo = false;
             else if (header.Itag == _video.Itag) isVideo = true;
+            else isVideo = header.Itag != _audio.Itag;
         }
 
         lock (_lock)

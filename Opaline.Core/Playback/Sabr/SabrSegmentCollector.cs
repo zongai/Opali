@@ -1,5 +1,12 @@
 namespace Opaline.Core.Playback.Sabr;
 
+/// <summary>nextRequestPolicy (UMP 35): backoff + playback cookie for next request.</summary>
+public sealed class SabrPolicy
+{
+    public int BackoffMs { get; init; }
+    public byte[]? PlaybackCookie { get; init; }
+}
+
 /// <summary>Collects MEDIA parts for one segment request (iOS SABRSegmentCollector).</summary>
 public sealed class SabrSegmentCollector
 {
@@ -14,6 +21,7 @@ public sealed class SabrSegmentCollector
     public SabrBufferedRange? DeliveredRange { get; private set; }
     public string? RedirectUrl { get; private set; }
     public string? ErrorDetail { get; private set; }
+    public SabrPolicy? Policy { get; private set; }
     public bool IsDone => _done;
 
     public byte[]? Segment
@@ -59,6 +67,9 @@ public sealed class SabrSegmentCollector
                 break;
             case UmpPartType.MediaEnd:
                 Finish();
+                break;
+            case UmpPartType.NextRequestPolicy:
+                NotePolicy(part.Payload);
                 break;
             case UmpPartType.SabrRedirect:
                 // payload often carries url string in protobuf field

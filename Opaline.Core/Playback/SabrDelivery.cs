@@ -76,7 +76,8 @@ public sealed class SabrDelivery : IDisposable
             ustreamer,
             videoFmt,
             audioFmt,
-            poToken);
+            poToken,
+            SabrClientKind.Tv);
 
         try
         {
