@@ -493,3 +493,46 @@ public sealed partial class InnertubeClient
     }
 
 }
+
+    /// <summary>
+    /// iOS-client /player audio-track list only (cheap, no pot) — feeds AutoDub probe.
+    /// </summary>
+    public async Task<IReadOnlyList<AudioTrackInfo>> FetchAudioTrackListAsync(
+        string videoId, CancellationToken ct = default)
+    {
+        var body = BuildContext(new
+        {
+            videoId,
+            contentCheckOk = true,
+            racyCheckOk = true
+        }, ClientIdentity.Ios);
+        var json = await PostAsync("player", body, ClientIdentity.Ios, sendAuth: false, ct)
+            .ConfigureAwait(false);
+        return ExtractAudioTrackList(json);
+    }
+
+    private static IReadOnlyList<AudioTrackInfo> ExtractAudioTrackList(JsonNode json)
+    {
+        var adaptive = json["streamingData"]?["adaptiveFormats"] as JsonArray;
+        if (adaptive is null) return Array.Empty<AudioTrackInfo>();
+        var seen = new HashSet<string>();
+        var tracks = new List<AudioTrackInfo>();
+        foreach (var fmt in adaptive)
+        {
+            if (fmt is null) continue;
+            var track = fmt["audioTrack"];
+            var id = track?["id"]?.GetValue<string>();
+            if (string.IsNullOrEmpty(id) || !seen.Add(id!)) continue;
+            tracks.Add(new AudioTrackInfo
+            {
+                Id = id!,
+                DisplayName = track?["displayName"]?.GetValue<string>() ?? id!,
+                IsDefault = track?["audioIsDefault"]?.GetValue<bool>() ?? false
+            });
+        }
+        if (tracks.Count < 2) return Array.Empty<AudioTrackInfo>();
+        return tracks
+            .OrderByDescending(t => t.IsOriginal)
+            .ThenBy(t => t.DisplayName)
+            .ToList();
+    }

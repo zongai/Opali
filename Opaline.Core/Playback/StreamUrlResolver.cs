@@ -1,4 +1,5 @@
 using Opaline.Core.Playback.Hls;
+using Opaline.Core.Api;
 using Opaline.Core.Models;
 
 namespace Opaline.Core.Playback;
@@ -15,15 +16,21 @@ public sealed class StreamUrlResolver
     private readonly SignatureTimestampService _sts;
     private readonly SabrDelivery _sabr = new();
     private readonly HlsSelfBuiltDelivery _hlsSelf = new();
+    private readonly AutoDubProbe? _autoDub;
+    public IReadOnlyList<AudioTrackInfo> ProbedAudioTracks { get; private set; } = Array.Empty<AudioTrackInfo>();
+    public AudioTrackInfo? SelectedDubTrack { get; private set; }
 
     public StreamUrlResolver(
         SignatureSolverService solver,
         PoTokenService poToken,
-        SignatureTimestampService sts)
+        SignatureTimestampService sts,
+        InnertubeClient? client = null)
     {
         _solver = solver;
         _poToken = poToken;
         _sts = sts;
+        if (client is not null)
+            _autoDub = new AutoDubProbe(client);
     }
 
     public async Task<ResolvedStream?> ResolveAsync(
@@ -34,6 +41,19 @@ public sealed class StreamUrlResolver
     {
         _ = await _sts.GetAsync(ct).ConfigureAwait(false);
         await _solver.EnsurePlayerJsAsync(page.Video.Id, ct).ConfigureAwait(false);
+
+        // AutoDubSource probe chain (IOS listing + deadline) before commit
+        SelectedDubTrack = null;
+        ProbedAudioTracks = Array.Empty<AudioTrackInfo>();
+        if (_autoDub is not null && AutoDubPreference.IsEnabled)
+        {
+            try
+            {
+                SelectedDubTrack = await _autoDub.ProbeAsync(page.Video.Id, ct).ConfigureAwait(false);
+                ProbedAudioTracks = _autoDub.LastTracks;
+            }
+            catch { /* play original */ }
+        }
 
         // SABR UMP demux → localhost fMP4 (when serverAbr + ustreamer present)
         if (!string.IsNullOrEmpty(page.ServerAbrStreamingUrl)
@@ -112,7 +132,7 @@ public sealed class StreamUrlResolver
 
         // Self-built HLS from SIDX (iOS HLSPlaybackBuilder) — before progressive dual
         {
-            var (vFmt, aFmt) = SelectBestAdaptive(page, maxHeight);
+            var (vFmt, aFmt) = SelectBestAdaptive(page, maxHeight, SelectedDubTrack?.Id);
             if (vFmt is not null && aFmt is not null
                 && vFmt.IndexRangeEnd > 0 && aFmt.IndexRangeEnd > 0)
             {
@@ -166,7 +186,7 @@ public sealed class StreamUrlResolver
         }
 
         // 3) Adaptive pair — separate video + audio (dual MediaPlayer on UI side)
-        var (video, audio) = SelectBestAdaptive(page, maxHeight);
+        var (video, audio) = SelectBestAdaptive(page, maxHeight, SelectedDubTrack?.Id);
         if (video is null) return null;
 
         var videoUrl = await FinalizeUrlAsync(
@@ -294,7 +314,7 @@ public sealed class StreamUrlResolver
             .FirstOrDefault();
 
     public static (StreamInfo? Video, StreamInfo? Audio) SelectBestAdaptive(
-        WatchPage page, int maxHeight = 1080)
+        WatchPage page, int maxHeight = 1080, string? preferredAudioTrackId = null)
     {
         // Video ladder: admit av01 only when Av1Support allows (iOS AV1Support)
         var videoCandidates = page.Streams
@@ -313,7 +333,15 @@ public sealed class StreamUrlResolver
         var audioList = page.Streams
             .Where(s => s.IsAudioOnly && !string.IsNullOrEmpty(s.Url))
             .ToList();
-        var audio = AutoDubPreference.SelectAudio(audioList)
+        StreamInfo? audio = null;
+        if (!string.IsNullOrEmpty(preferredAudioTrackId))
+        {
+            audio = audioList
+                .Where(s => s.AudioTrackId == preferredAudioTrackId)
+                .OrderByDescending(s => s.Bitrate ?? 0)
+                .FirstOrDefault();
+        }
+        audio ??= AutoDubPreference.SelectAudio(audioList)
             ?? audioList
                 .OrderByDescending(s => s.MimeType.Contains("mp4", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
                 .ThenByDescending(s => s.Bitrate ?? 0)

@@ -39,3 +39,8 @@
 - `AutoDubPreference`: language match + ignore AI `.10` tracks; used in SelectBestAdaptive
 - Offline: `IDownloadService.TryGetLocalMediaPath`; Watch load failure → local file playback
 - Settings: Prefer AV1, Auto-dub, Ignore AI dubs, language code
+
+## AutoDubSource probe chain
+- `FetchAudioTrackListAsync` via IOS `/player` (no pot), distinct audioTrack.id
+- `AutoDubProbe` deadline (~400ms) races listing; `AutoDubPreference.AutoDubTrack`
+- Original = `*.4`, AI dub = `*.10`; StreamUrlResolver commits preferred track id before adaptive resolve
