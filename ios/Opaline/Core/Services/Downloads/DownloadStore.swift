@@ -141,3 +141,16 @@ extension DownloadStore {
         return try? JSONDecoder().decode([SubtitleCue].self, from: data)
     }
 }
+
+// MARK: - Offline comments stub
+extension DownloadStore {
+    struct StoredComments {
+        let title: String?
+        let comments: [Comment]
+        let continuation: String?
+    }
+
+    static func comments(for videoId: String, continuation: String?) -> StoredComments? {
+        nil
+    }
+}
