@@ -1,11 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using Opaline.App.Services;
 using Opaline.App.ViewModels;
-using Opaline.Core.Services.SponsorBlock;
+using Opaline.Core.Models;
 
 namespace Opaline.App.Views;
 
@@ -15,6 +14,7 @@ public sealed partial class WatchPage : Page
     private DualStreamPlayer? _player;
     private DispatcherTimer? _skipTimer;
     private bool _isFullWindow;
+    private bool _captionsBound;
 
     public WatchPage()
     {
@@ -28,35 +28,51 @@ public sealed partial class WatchPage : Page
         base.OnNavigatedTo(e);
         _player ??= new DualStreamPlayer(DispatcherQueue);
         Player.SetMediaPlayer(_player.VideoPlayer);
-
-        if (e.Parameter is string videoId)
-            await ViewModel.LoadAsync(videoId);
+        if (e.Parameter is string id)
+            await ViewModel.LoadAsync(id);
+        BindCaptionCombo();
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
-        if (_isFullWindow)
-            ExitFullWindow();
+        if (_isFullWindow) ExitFullWindow();
         _skipTimer?.Stop();
         _skipTimer = null;
         _player?.Stop();
         Player.SetMediaPlayer(null);
         _player?.Dispose();
         _player = null;
+        ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+    }
+
+    private void BindCaptionCombo()
+    {
+        if (_captionsBound) return;
+        var items = new List<object> { "Off" };
+        items.AddRange(ViewModel.Captions);
+        CaptionCombo.ItemsSource = items;
+        CaptionCombo.SelectedIndex = 0;
+        _captionsBound = true;
     }
 
     private async void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(WatchViewModel.Captions) || e.PropertyName == nameof(WatchViewModel.IsLoading))
+        {
+            if (!ViewModel.IsLoading && ViewModel.Captions.Count > 0)
+            {
+                _captionsBound = false;
+                BindCaptionCombo();
+            }
+        }
+
         if (e.PropertyName != nameof(WatchViewModel.PlayableUrl)) return;
         if (string.IsNullOrEmpty(ViewModel.PlayableUrl) || _player is null) return;
 
         try
         {
-            await _player.LoadAsync(
-                ViewModel.PlayableUrl!,
-                ViewModel.AudioUrl,
-                ViewModel.IsManifest);
+            await _player.LoadAsync(ViewModel.PlayableUrl!, ViewModel.AudioUrl, ViewModel.IsManifest);
             StartSkipMonitor();
             AppLog.Info("WatchPage", "playback started");
         }
@@ -64,7 +80,6 @@ public sealed partial class WatchPage : Page
         {
             ViewModel.ErrorMessage = $"Playback error: {ex.Message}";
             CrashLog.Write("WatchPage.Playback", ex);
-            AppLog.Error("WatchPage", "playback error", ex);
         }
     }
 
@@ -74,18 +89,36 @@ public sealed partial class WatchPage : Page
         {
             Player.IsFullWindow = !Player.IsFullWindow;
             _isFullWindow = Player.IsFullWindow;
-            AppLog.Info("WatchPage", $"fullwindow={_isFullWindow}");
         }
-        catch (Exception ex)
-        {
-            AppLog.Error("WatchPage", "fullscreen failed", ex);
-        }
+        catch (Exception ex) { AppLog.Error("WatchPage", "fullscreen failed", ex); }
     }
 
     private void ExitFullWindow()
     {
-        try { Player.IsFullWindow = false; } catch { /* ignore */ }
+        try { Player.IsFullWindow = false; } catch { }
         _isFullWindow = false;
+    }
+
+    private void Channel_Click(object sender, RoutedEventArgs e)
+    {
+        var id = ViewModel.Video?.ChannelId;
+        if (!string.IsNullOrEmpty(id))
+            Frame.Navigate(typeof(ChannelPage), id);
+    }
+
+    private async void Quality_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox { SelectedItem: StreamInfo stream })
+            await ViewModel.SelectQualityAsync(stream);
+    }
+
+    private async void Caption_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox box) return;
+        if (box.SelectedItem is CaptionTrack track)
+            await ViewModel.SelectCaptionAsync(track);
+        else
+            await ViewModel.SelectCaptionAsync(null);
     }
 
     private void StartSkipMonitor()
@@ -106,10 +139,7 @@ public sealed partial class WatchPage : Page
                     SkipBar.IsOpen = true;
                 }
             }
-            catch (Exception ex)
-            {
-                CrashLog.Write("WatchPage.SkipMonitor", ex);
-            }
+            catch (Exception ex) { CrashLog.Write("WatchPage.SkipMonitor", ex); }
         };
         _skipTimer.Start();
     }

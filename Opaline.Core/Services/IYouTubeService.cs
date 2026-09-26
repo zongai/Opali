@@ -10,6 +10,14 @@ public interface IYouTubeService
     Task<WatchPage> GetWatchAsync(string videoId, CancellationToken ct = default);
     Task<SearchPage> SearchAsync(string query, string? continuation = null, CancellationToken ct = default);
     Task<IReadOnlyList<string>> GetSuggestionsAsync(string query, CancellationToken ct = default);
-    Task<Channel> GetChannelAsync(string channelId, CancellationToken ct = default);
     Task<CommentsPage> GetCommentsAsync(string videoId, string? continuation = null, CancellationToken ct = default);
+    Task<ChannelPage> GetChannelAsync(string channelId, string? continuation = null, CancellationToken ct = default);
+    Task<PlaylistPage> GetPlaylistAsync(string playlistId, string? continuation = null, CancellationToken ct = default);
+    Task<IReadOnlyList<Playlist>> GetLibraryPlaylistsAsync(CancellationToken ct = default);
+    Task LikeAsync(string videoId, CancellationToken ct = default);
+    Task DislikeAsync(string videoId, CancellationToken ct = default);
+    Task RemoveLikeAsync(string videoId, CancellationToken ct = default);
+    Task SubscribeAsync(string channelId, CancellationToken ct = default);
+    Task UnsubscribeAsync(string channelId, CancellationToken ct = default);
+    Task<string?> FetchCaptionAsync(string baseUrl, CancellationToken ct = default);
 }

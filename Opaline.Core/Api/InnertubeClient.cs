@@ -290,13 +290,53 @@ public sealed partial class InnertubeClient
         var hls = streamingData?["hlsManifestUrl"]?.GetValue<string>();
         var dash = streamingData?["dashManifestUrl"]?.GetValue<string>();
 
+        var captions = ParseCaptionTracks(json);
+        var videoQualities = streams
+            .Where(s => !s.IsAudioOnly && (s.Height is > 0 || !string.IsNullOrEmpty(s.QualityLabel)))
+            .GroupBy(s => s.Height ?? 0)
+            .Select(g => g.OrderByDescending(s => s.Bitrate ?? 0).First())
+            .OrderByDescending(s => s.Height ?? 0)
+            .ToList();
+        var audioTracks = streams
+            .Where(s => s.IsAudioOnly)
+            .OrderByDescending(s => s.Bitrate ?? 0)
+            .ToList();
+
         return new WatchPage
         {
             Video = video,
             Streams = streams,
             HlsManifestUrl = hls,
-            DashManifestUrl = dash
+            DashManifestUrl = dash,
+            CaptionTracks = captions,
+            VideoQualities = videoQualities,
+            AudioTracks = audioTracks
         };
+    }
+
+    private static IReadOnlyList<CaptionTrack> ParseCaptionTracks(JsonNode json)
+    {
+        var list = new List<CaptionTrack>();
+        var tracks = json["captions"]?["playerCaptionsTracklistRenderer"]?["captionTracks"] as JsonArray;
+        if (tracks is null) return list;
+        foreach (var t in tracks)
+        {
+            if (t is null) continue;
+            var url = t["baseUrl"]?.GetValue<string>();
+            if (string.IsNullOrEmpty(url)) continue;
+            list.Add(new CaptionTrack
+            {
+                BaseUrl = url,
+                LanguageCode = t["languageCode"]?.GetValue<string>() ?? "",
+                LanguageName = t["name"]?["simpleText"]?.GetValue<string>()
+                    ?? t["name"]?["runs"]?[0]?["text"]?.GetValue<string>()
+                    ?? t["languageCode"]?.GetValue<string>()
+                    ?? "Unknown",
+                Kind = t["kind"]?.GetValue<string>(),
+                IsTranslatable = t["isTranslatable"]?.GetValue<bool>() ?? false
+            });
+        }
+        return list;
     }
 
     private static SearchPage ParseSearchPage(JsonNode json)

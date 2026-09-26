@@ -19,6 +19,15 @@ public sealed class WatchPage
 
     /// <summary>Server-provided DASH MPD (fallback adaptive).</summary>
     public string? DashManifestUrl { get; init; }
+
+    /// <summary>Available caption / subtitle tracks.</summary>
+    public IReadOnlyList<CaptionTrack> CaptionTracks { get; init; } = Array.Empty<CaptionTrack>();
+
+    /// <summary>Video quality options (non-audio).</summary>
+    public IReadOnlyList<StreamInfo> VideoQualities { get; init; } = Array.Empty<StreamInfo>();
+
+    /// <summary>Audio-only streams.</summary>
+    public IReadOnlyList<StreamInfo> AudioTracks { get; init; } = Array.Empty<StreamInfo>();
 }
 
 public sealed class StreamInfo

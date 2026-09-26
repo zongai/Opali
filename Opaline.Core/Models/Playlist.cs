@@ -6,7 +6,7 @@ public sealed class Playlist
     public string Title { get; init; } = string.Empty;
     public string? Description { get; init; }
     public string? ThumbnailUrl { get; init; }
-    public string? ChannelTitle { get; init; }
+    public string? Author { get; init; }
+    public string? AuthorId { get; init; }
     public int? VideoCount { get; init; }
-    public IReadOnlyList<Video>? Videos { get; init; }
 }

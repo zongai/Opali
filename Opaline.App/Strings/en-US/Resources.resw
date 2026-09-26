@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c641934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c641934e089</value></resheader>
+  <data name="Nav.Home" xml:space="preserve"><value>Home</value></data>
+  <data name="Nav.Shorts" xml:space="preserve"><value>Shorts</value></data>
+  <data name="Nav.Subscriptions" xml:space="preserve"><value>Subscriptions</value></data>
+  <data name="Nav.Library" xml:space="preserve"><value>Library</value></data>
+  <data name="Watch.Subscribe" xml:space="preserve"><value>Subscribe</value></data>
+  <data name="Watch.Download" xml:space="preserve"><value>Download</value></data>
+  <data name="Watch.Fullscreen" xml:space="preserve"><value>Fullscreen</value></data>
+  <data name="Library.History" xml:space="preserve"><value>History</value></data>
+  <data name="Library.WatchLater" xml:space="preserve"><value>Watch Later</value></data>
+  <data name="Library.Playlists" xml:space="preserve"><value>Playlists</value></data>
+  <data name="Library.Downloads" xml:space="preserve"><value>Downloads</value></data>
+</root>

@@ -27,9 +27,33 @@ public sealed class YouTubeService : IYouTubeService
     public Task<IReadOnlyList<string>> GetSuggestionsAsync(string query, CancellationToken ct = default)
         => _client.GetSearchSuggestionsAsync(query, ct);
 
-    public Task<Channel> GetChannelAsync(string channelId, CancellationToken ct = default)
-        => _client.GetChannelAsync(channelId, ct);
-
     public Task<CommentsPage> GetCommentsAsync(string videoId, string? continuation = null, CancellationToken ct = default)
         => _client.GetCommentsAsync(videoId, continuation, ct);
+
+    public Task<ChannelPage> GetChannelAsync(string channelId, string? continuation = null, CancellationToken ct = default)
+        => _client.GetChannelPageAsync(channelId, continuation, ct);
+
+    public Task<PlaylistPage> GetPlaylistAsync(string playlistId, string? continuation = null, CancellationToken ct = default)
+        => _client.GetPlaylistAsync(playlistId, continuation, ct);
+
+    public Task<IReadOnlyList<Playlist>> GetLibraryPlaylistsAsync(CancellationToken ct = default)
+        => _client.GetLibraryPlaylistsAsync(ct);
+
+    public Task LikeAsync(string videoId, CancellationToken ct = default)
+        => _client.LikeAsync(videoId, ct);
+
+    public Task DislikeAsync(string videoId, CancellationToken ct = default)
+        => _client.DislikeAsync(videoId, ct);
+
+    public Task RemoveLikeAsync(string videoId, CancellationToken ct = default)
+        => _client.RemoveLikeAsync(videoId, ct);
+
+    public Task SubscribeAsync(string channelId, CancellationToken ct = default)
+        => _client.SubscribeAsync(channelId, ct);
+
+    public Task UnsubscribeAsync(string channelId, CancellationToken ct = default)
+        => _client.UnsubscribeAsync(channelId, ct);
+
+    public Task<string?> FetchCaptionAsync(string baseUrl, CancellationToken ct = default)
+        => _client.FetchCaptionXmlAsync(baseUrl, ct);
 }

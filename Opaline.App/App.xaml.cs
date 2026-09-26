@@ -82,6 +82,7 @@ public partial class App : Application
         sc.AddSingleton<PlaybackService>();
         sc.AddSingleton<SponsorBlockService>();
         sc.AddSingleton<ReturnYouTubeDislikeService>();
+        sc.AddSingleton<IDownloadService, DownloadService>();
         sc.AddSingleton<WatchHistoryStore>();
         sc.AddSingleton<INavigationService, NavigationService>();
         sc.AddSingleton<IThemeService, ThemeService>();
@@ -89,6 +90,7 @@ public partial class App : Application
         sc.AddTransient<HomeViewModel>();
         sc.AddTransient<SearchViewModel>();
         sc.AddTransient<WatchViewModel>();
+        sc.AddTransient<ChannelViewModel>();
         sc.AddTransient<SubscriptionsViewModel>();
         sc.AddTransient<LibraryViewModel>();
         sc.AddTransient<ShortsViewModel>();
