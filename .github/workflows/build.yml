@@ -65,15 +65,13 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-      - name: Install ldid-procursus
+      - name: Install build tools
         run: |
-          brew install ldid-procursus || brew reinstall ldid-procursus || true
-          # Prefer procursus ldid if both exist
-          if command -v ldid >/dev/null; then ldid 2>&1 | head -3 || true; fi
-          # Some runners need unlink of homebrew ldid first
+          brew install swiftlint ldid-procursus || true
           brew unlink ldid 2>/dev/null || true
           brew install ldid-procursus 2>/dev/null || true
-          which ldid
+          which swiftlint || true
+          which ldid || true
           ldid 2>&1 | head -2 || true
 
       - name: Ensure Local.xcconfig
