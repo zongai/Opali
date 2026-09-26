@@ -154,7 +154,7 @@ public static class SabrProtobuf
         }
         var head = first & (0xFF >> length);
         var tail = ReadLe(data, offset + 1, length - 1);
-        value = (int)(head + (tail << (8 - length)));
+        value = (int)((ulong)head + (tail << (8 - length)));
         next = offset + length;
         return true;
     }
