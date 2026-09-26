@@ -1,4 +1,4 @@
-name: Build
+name: Build & Release
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   windows:
@@ -29,7 +32,7 @@ jobs:
         run: |
           msbuild Opaline.App\Opaline.App.csproj /restore /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:WindowsAppSDKSelfContained=true /p:SelfContained=true /p:PublishSingleFile=false /p:WindowsPackageType=None /p:GenerateAppxPackageOnBuild=false /m
 
-      - name: Stage artifact
+      - name: Stage & zip
         shell: pwsh
         run: |
           $out = "Opaline-Windows-x64"
@@ -39,59 +42,114 @@ jobs:
           $dir = $bin.Directory.FullName
           Copy-Item -Path (Join-Path $dir "*") -Destination $out -Recurse -Force
           if (Test-Path "Opaline.App\run-opaline.cmd") { Copy-Item "Opaline.App\run-opaline.cmd" $out -Force }
+          # Also expose bare exe path for release notes clarity
+          Copy-Item $bin.FullName -Destination "Opaline.App.exe" -Force
+          Compress-Archive -Path $out -DestinationPath "Opaline-Windows-x64.zip" -Force
+          Get-Item "Opaline-Windows-x64.zip", "Opaline.App.exe" | Format-Table Name, Length
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Opaline-Windows-x64
-          path: Opaline-Windows-x64
+          name: windows-release
+          path: |
+            Opaline-Windows-x64.zip
+            Opaline.App.exe
           if-no-files-found: error
 
   ios:
-    name: iOS (Xcode)
+    name: iOS (unsigned IPA)
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show iOS tree
-        run: |
-          ls -la ios || true
-          ls -la ios/Opaline.xcodeproj || true
-          test -f ios/Opaline.xcodeproj/project.pbxproj
-
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-      - name: Build iOS (simulator, no codesign)
-        working-directory: ios
-        continue-on-error: true
+      - name: Install ldid-procursus
         run: |
-          set -o pipefail
-          xcodebuild \
-            -project Opaline.xcodeproj \
-            -scheme Opaline \
-            -destination 'generic/platform=iOS Simulator' \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            build | xcpretty || xcodebuild \
-            -project Opaline.xcodeproj \
-            -scheme Opaline \
-            -destination 'generic/platform=iOS Simulator' \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            build
+          brew install ldid-procursus || brew reinstall ldid-procursus || true
+          # Prefer procursus ldid if both exist
+          if command -v ldid >/dev/null; then ldid 2>&1 | head -3 || true; fi
+          # Some runners need unlink of homebrew ldid first
+          brew unlink ldid 2>/dev/null || true
+          brew install ldid-procursus 2>/dev/null || true
+          which ldid
+          ldid 2>&1 | head -2 || true
 
-      - name: Upload iOS build log note
-        if: always()
-        run: echo "iOS job finished" > ios-build-status.txt
+      - name: Build unsigned IPA
+        working-directory: ios
+        env:
+          UPDATE_SOURCE: "0"
+          IPA_VERSION: "0.0.${{ github.run_number }}"
+          BUILD_NUMBER: "${{ github.run_number }}"
+          XCODEBUILD_EXTRA_ARGS: "CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= CODE_SIGNING_ALLOWED=NO"
+        run: |
+          set -e
+          chmod +x make_ipa.sh
+          # Ensure xcodebuild gets unsigned flags
+          export XCODEBUILD_EXTRA_ARGS="CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="
+          ./make_ipa.sh
+          ls -lh Opaline_*.ipa
+          # Normalize name for release
+          IPA=$(ls -1 Opaline_*.ipa | head -1)
+          cp "$IPA" "../Opaline-iOS-unsigned.ipa"
+          cp "$IPA" "../Opaline_${IPA_VERSION}.ipa"
 
-      - name: Upload iOS status
-        if: always()
+      - name: Upload iOS IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Opaline-iOS-status
-          path: ios-build-status.txt
+          name: ios-release
+          path: |
+            Opaline-iOS-unsigned.ipa
+            Opaline_*.ipa
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [windows, ios]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release
+          path: dist
+
+      - name: Download iOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-release
+          path: dist
+
+      - name: List dist
+        run: ls -lah dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          body: |
+            Automated build from `main` (`${{ github.sha }}`).
+
+            ### Windows
+            - `Opaline-Windows-x64.zip` — 完整自包含包（解压后运行 `Opaline.App.exe`）
+            - `Opaline.App.exe` — 主程序（仍需同目录 DLL，推荐用 zip）
+
+            ### iOS
+            - `Opaline-iOS-unsigned.ipa` — **未签名** IPA（越狱 / AppSync / 侧载工具）
+            - `Opaline_0.0.${{ github.run_number }}.ipa` — 带版本号的同内容 IPA
+
+            安装 iOS：拷到设备 → Filza 打开 → Install（需 AppSync 等）。
+          files: |
+            dist/Opaline-Windows-x64.zip
+            dist/Opaline.App.exe
+            dist/Opaline-iOS-unsigned.ipa
+            dist/Opaline_*.ipa
+          fail_on_unmatched_files: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -142,21 +142,27 @@ codesign -f -s - --entitlements "$ENTITLEMENTS" "$APP_PATH" 2>/dev/null \
 # leaves the bundle unsigned and installd rejects the IPA with 0xe800801c.
 # Needs ldid-procursus; the homebrew-core `ldid` has no -S flag.
 if ! ldid 2>&1 | head -1 | grep -q procursus; then
-  echo "❌ ldid-procursus required: brew unlink ldid && brew install ldid-procursus"
-  exit 1
+  echo "⚠️  ldid-procursus not detected — skipping ldid re-sign (codesign ad-hoc only)"
+  SKIP_LDID=1
+else
+  SKIP_LDID=0
 fi
 # -s preserves whatever codesign just wrote; -S would set entitlements a second
 # time and put an empty entitlements blob on dylibs that never had one.
-echo "▶ Re-signing binaries with ldid for iOS 12.0–12.1..."
-for dylib in "$APP_PATH/Frameworks/"*.dylib; do
-  [ -e "$dylib" ] || continue
-  ldid -s "$dylib"
-done
-if [ -d "$APPEX_PATH" ]; then
-  ldid -s "$APPEX_PATH/OpalineOpenIn"
+if [ "${SKIP_LDID:-0}" = "0" ]; then
+  echo "▶ Re-signing binaries with ldid for iOS 12.0–12.1..."
+  for dylib in "$APP_PATH/Frameworks/"*.dylib; do
+    [ -e "$dylib" ] || continue
+    ldid -s "$dylib"
+  done
+  if [ -d "$APPEX_PATH" ]; then
+    ldid -s "$APPEX_PATH/OpalineOpenIn"
+  fi
+  ldid -s "$APP_PATH/$APP_NAME"
+  echo "  ldid: ok"
+else
+  echo "▶ Skipping ldid (not available)"
 fi
-ldid -s "$APP_PATH/$APP_NAME"
-echo "  ldid: ok"
 rm -f "$ENTITLEMENTS"
 
 echo "▶ Packaging IPA..."

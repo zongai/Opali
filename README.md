@@ -39,3 +39,16 @@ xcodebuild -project Opaline.xcodeproj -scheme Opaline \
 ## CI
 
 Push to `main` runs **both** Windows and iOS jobs in parallel (see `.github/workflows/build.yml`).
+
+## Releases
+
+Every push to `main` publishes a GitHub Release tagged `build-<run_number>` with:
+
+| Asset | Description |
+|-------|-------------|
+| `Opaline-Windows-x64.zip` | Windows self-contained package |
+| `Opaline.App.exe` | Windows main executable (use with zip contents) |
+| `Opaline-iOS-unsigned.ipa` | Unsigned iOS IPA |
+| `Opaline_0.0.<n>.ipa` | Same IPA with version in filename |
+
+See: https://github.com/zongai/Opali/releases
