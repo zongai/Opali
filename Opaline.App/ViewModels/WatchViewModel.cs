@@ -94,7 +94,6 @@ public partial class WatchViewModel : ObservableObject
 
     partial void OnErrorMessageChanged(string? value) => HasError = !string.IsNullOrEmpty(value);
 
-    [RelayCommand]
     private bool TryPlayOffline(string videoId)
     {
         try
