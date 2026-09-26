@@ -69,6 +69,7 @@ public sealed class CommentThread
     public string? PublishedTime { get; init; }
     public int ReplyCount { get; init; }
     public IReadOnlyList<CommentThread>? Replies { get; init; }
+    public string? TranslatedText { get; set; }
 }
 
 
