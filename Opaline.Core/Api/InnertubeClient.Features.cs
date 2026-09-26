@@ -492,8 +492,6 @@ public sealed partial class InnertubeClient
             .ToList();
     }
 
-}
-
     /// <summary>
     /// iOS-client /player audio-track list only (cheap, no pot) — feeds AutoDub probe.
     /// </summary>
@@ -536,3 +534,4 @@ public sealed partial class InnertubeClient
             .ThenBy(t => t.DisplayName)
             .ToList();
     }
+}
