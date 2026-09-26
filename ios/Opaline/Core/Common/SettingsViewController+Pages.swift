@@ -121,6 +121,11 @@ extension SettingsViewController {
                 header: nil,
                 footer: "settings.footer.language".localized,
                 rows: [.appLanguage, .region]
+            ),
+            Section(
+                header: "settings.section.translation".localized,
+                footer: "settings.footer.translation".localized,
+                rows: [.translationTarget, .translationEngine]
             )
         ]
     }
@@ -135,6 +140,11 @@ extension SettingsViewController {
                 header: "settings.section.videoQuality".localized,
                 footer: nil,
                 rows: [.quality, .qualityCellular]
+            ),
+            Section(
+                header: "settings.section.speed".localized,
+                footer: "settings.footer.defaultSpeed".localized,
+                rows: [.defaultPlaybackSpeed]
             ),
             Section(
                 header: nil,

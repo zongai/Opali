@@ -610,3 +610,27 @@
 "player.translate.titleShort" = "Title";
 "player.translate.captionsShort" = "CC";
 "player.translate.commentsShort" = "Translate";
+
+"settings.section.translation" = "Translation";
+"settings.footer.translation" = "Target language and preferred engine for title, comments, and captions.";
+"settings.row.translationTarget" = "Target language";
+"settings.row.translationEngine" = "Preferred engine";
+"settings.footer.translationEngine" = "If the preferred engine fails, others are tried automatically.";
+"settings.translation.engine.google" = "Google";
+"settings.translation.engine.myMemory" = "MyMemory";
+"settings.translation.engine.lingva" = "Lingva";
+"settings.translation.engine.deepL" = "DeepL (optional key)";
+"settings.translation.lang.zhHans" = "Chinese (Simplified)";
+"settings.translation.lang.zhHant" = "Chinese (Traditional)";
+"settings.translation.lang.en" = "English";
+"settings.translation.lang.ja" = "Japanese";
+"settings.translation.lang.ko" = "Korean";
+"settings.translation.lang.es" = "Spanish";
+"settings.translation.lang.fr" = "French";
+"settings.translation.lang.de" = "German";
+"settings.translation.lang.ru" = "Russian";
+"settings.translation.lang.vi" = "Vietnamese";
+"settings.translation.lang.id" = "Indonesian";
+"settings.section.speed" = "Playback speed";
+"settings.row.defaultSpeed" = "Default speed";
+"settings.footer.defaultSpeed" = "Applied when opening a video. You can still change speed in the player.";

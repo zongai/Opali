@@ -95,6 +95,15 @@ enum UserDefaultsKeys {
         static let pipEnabled = "player_pipEnabled"
         static let hideStatusBarInFullscreen = "player_hideStatusBarFullscreen"
         static let autoZoomToFill = "player_autoZoomToFill"
+        /// Default rate when opening a video (0.25…2.0).
+        static let defaultSpeed = "player_defaultSpeed"
+    }
+
+    enum Translation {
+        /// Override target language (e.g. zh-CN); absent = follow app language.
+        static let targetLanguage = "translation_targetLanguage"
+        /// Preferred engine raw value (google / myMemory / lingva / deepL).
+        static let preferredEngine = "translation_preferredEngine"
     }
 
     enum Playback {

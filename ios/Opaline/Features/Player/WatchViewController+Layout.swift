@@ -446,10 +446,12 @@ extension WatchViewController {
     private func configureCommentsTranslateButton() {
         let btn = translateCommentsButton
         btn.setTitle("player.translate.commentsShort".localized, for: .normal)
-        btn.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
-        btn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
-        btn.layer.cornerRadius = 16
+        btn.titleLabel?.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
+        btn.contentEdgeInsets = UIEdgeInsets(top: 7, left: 14, bottom: 7, right: 14)
+        btn.layer.cornerRadius = 15
         btn.clipsToBounds = true
+        btn.setContentHuggingPriority(.required, for: .horizontal)
+        btn.setContentCompressionResistancePriority(.required, for: .horizontal)
         btn.addTarget(
             self, action: #selector(translateCommentsTapped), for: .touchUpInside
         )

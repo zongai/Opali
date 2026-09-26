@@ -171,7 +171,7 @@ final class VideoPlayerView: UIView {
 
     // MARK: - Playback Speed
 
-    var playbackSpeed: Float = 1.0 {
+    var playbackSpeed: Float = PlaybackSpeedPreference.defaultSpeed {
         didSet {
             player?.rate = playbackSpeed
             updateSpeedButtonTitle()

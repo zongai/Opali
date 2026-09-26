@@ -554,3 +554,27 @@
 "player.translate.titleShort" = "翻译";
 "player.translate.captionsShort" = "字幕";
 "player.translate.commentsShort" = "翻译";
+
+"settings.section.translation" = "翻译";
+"settings.footer.translation" = "用于标题、评论与字幕的目标语言和首选引擎。";
+"settings.row.translationTarget" = "目标语言";
+"settings.row.translationEngine" = "首选引擎";
+"settings.footer.translationEngine" = "首选引擎失败时会自动尝试其他引擎。";
+"settings.translation.engine.google" = "Google";
+"settings.translation.engine.myMemory" = "MyMemory";
+"settings.translation.engine.lingva" = "Lingva";
+"settings.translation.engine.deepL" = "DeepL（可选密钥）";
+"settings.translation.lang.zhHans" = "简体中文";
+"settings.translation.lang.zhHant" = "繁體中文";
+"settings.translation.lang.en" = "英语";
+"settings.translation.lang.ja" = "日语";
+"settings.translation.lang.ko" = "韩语";
+"settings.translation.lang.es" = "西班牙语";
+"settings.translation.lang.fr" = "法语";
+"settings.translation.lang.de" = "德语";
+"settings.translation.lang.ru" = "俄语";
+"settings.translation.lang.vi" = "越南语";
+"settings.translation.lang.id" = "印尼语";
+"settings.section.speed" = "播放速度";
+"settings.row.defaultSpeed" = "默认速度";
+"settings.footer.defaultSpeed" = "打开视频时使用。播放中仍可在播放器内临时调整。";

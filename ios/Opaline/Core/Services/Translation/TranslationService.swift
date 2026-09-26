@@ -32,8 +32,13 @@ final class TranslationService {
         self.session = session
     }
 
-    /// Target BCP-47-ish code used by free engines (e.g. zh-CN, en, ja).
+    /// Target from settings (or app language when not overridden).
     static var preferredTarget: String {
+        TranslationPreferences.effectiveTargetLanguage
+    }
+
+    /// App language only — used when settings follow system.
+    static var preferredTargetFromAppLanguage: String {
         let code = AppLanguage.effective.rawValue
         switch code {
         case "zh-Hans", "zh-CN", "zh": return "zh-CN"
@@ -57,7 +62,7 @@ final class TranslationService {
             completion(.success(hit as String))
             return
         }
-        let engines: [TranslationEngine] = [.google, .myMemory, .lingva, .deepL]
+        let engines = TranslationPreferences.engineChain
         tryEngines(engines, text: trimmed, target: target, key: key, completion: completion)
     }
 

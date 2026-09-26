@@ -16,6 +16,8 @@ final class SettingsViewController: UIViewController {
         case autoZoomToFill
         case autoplayEnabled, autoplayMixEnabled
         case autoDubEnabled, autoDubLanguage, autoDubIgnoreAI
+        case translationTarget, translationEngine
+        case defaultPlaybackSpeed
         case homeLayout, defaultTab
         case persistCache, feedCacheDays
         case imageCacheEnabled, imageCacheDays, thumbnailQuality
@@ -304,6 +306,12 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
             return makeAutoDubLanguageCell()
         case .autoDubIgnoreAI:
             return makeAutoDubIgnoreAICell()
+        case .translationTarget:
+            return makeTranslationTargetCell()
+        case .translationEngine:
+            return makeTranslationEngineCell()
+        case .defaultPlaybackSpeed:
+            return makeDefaultSpeedCell()
         case .homeLayout:
             return makeDisclosureCell(
                 "settings.row.homeLayout".localized,
@@ -416,7 +424,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
         let handlers = [
             handlePageSelection,
             handleDebugSelection, handleThemeSelection,
-            handleLanguageSelection, handleAutoDubSelection,
+            handleLanguageSelection, handleAutoDubSelection, handleTranslationSelection,
             handleNotificationsSelection, handleAboutSelection,
             handleDownloadSelection,
             handleGeneralSelection
@@ -440,6 +448,8 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
 
     private func handleGeneralSelection(_ row: Row) -> Bool {
         switch row {
+        case .defaultPlaybackSpeed:
+            showDefaultSpeedPicker()
         case .quality, .qualityCellular:
             showQualityPicker(forCellular: row == .qualityCellular)
         case .shortsPlayer:

@@ -47,6 +47,8 @@ extension WatchViewController {
             waitsToMinimizeStalling: minimizeStalling
         )
         let pv = getOrCreatePlayerView()
+        // Apply user default speed for each new attachment
+        pv.playbackSpeed = PlaybackSpeedPreference.defaultSpeed
         configureSponsorBlock(on: pv)
         playerContainer.bringSubviewToFront(pv)
         pv.attach(player: player)
@@ -109,6 +111,7 @@ extension WatchViewController {
             return existing
         }
         let playerView = VideoPlayerView()
+        playerView.playbackSpeed = PlaybackSpeedPreference.defaultSpeed
         playerView
             .translatesAutoresizingMaskIntoConstraints
             = false
