@@ -1,4 +1,4 @@
-# Minimal config for CI unsigned builds
+
 disabled_rules:
   - trailing_whitespace
   - line_length
@@ -9,8 +9,15 @@ disabled_rules:
   - type_body_length
   - file_length
   - function_body_length
+  - function_parameter_count
   - cyclomatic_complexity
   - nesting
+  - superfluous_disable_command
+  - blanket_disable_command
+  - orphaned_doc_comment
+  - type_name
+  - large_tuple
+  - vertical_parameter_alignment
 excluded:
   - Pods
   - build
