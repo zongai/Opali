@@ -9,13 +9,26 @@ enum TranslationEngine: String, CaseIterable {
 enum TranslationError: LocalizedError {
     case empty
     case rateLimited(TranslationEngine)
+    case noDeepLKey
     case failed(String)
+    /// All engines in the chain failed; `details` is engine → reason.
+    case allFailed(target: String, details: [(TranslationEngine, String)])
 
     var errorDescription: String? {
         switch self {
-        case .empty: return "Empty text"
-        case .rateLimited(let e): return "Rate limited: \(e.rawValue)"
-        case .failed(let m): return m
+        case .empty:
+            return "player.translate.error.empty".localized
+        case .rateLimited(let e):
+            return "player.translate.error.rateLimited".localized(with: e.rawValue)
+        case .noDeepLKey:
+            return "player.translate.error.noDeepLKey".localized
+        case .failed(let m):
+            return m
+        case .allFailed(let target, let details):
+            let lines = details.map { "\($0.0.rawValue): \($0.1)" }.joined(separator: "
+")
+            return "player.translate.error.allFailed".localized(with: target) + "
+" + lines
         }
     }
 }
@@ -152,17 +165,23 @@ final class TranslationService {
         text: String,
         target: String,
         key: NSString,
-        completion: @escaping (Result<String, Error>) -> Void
+        completion: @escaping (Result<String, Error>) -> Void,
+        failures: [(TranslationEngine, String)] = []
     ) {
         guard let engine = engines.first else {
-            completion(.failure(TranslationError.failed("All engines failed")))
+            let details = failures.isEmpty
+                ? [(.google, "player.translate.error.unknown".localized)]
+                : failures
+            completion(.failure(TranslationError.allFailed(target: target, details: details)))
             return
         }
         let rest = Array(engines.dropFirst())
         lock.lock()
         if let until = limitedUntil[engine], until > Date() {
             lock.unlock()
-            tryEngines(rest, text: text, target: target, key: key, completion: completion)
+            var next = failures
+            next.append((engine, "player.translate.error.rateLimitedShort".localized))
+            tryEngines(rest, text: text, target: target, key: key, completion: completion, failures: next)
             return
         }
         lock.unlock()
@@ -174,14 +193,19 @@ final class TranslationService {
                 self.cache.setObject(s as NSString, forKey: key)
                 completion(.success(s))
             case .success:
-                self.tryEngines(rest, text: text, target: target, key: key, completion: completion)
+                var next = failures
+                next.append((engine, "player.translate.error.emptyResult".localized))
+                self.tryEngines(rest, text: text, target: target, key: key, completion: completion, failures: next)
             case .failure(let e):
                 if case TranslationError.rateLimited = e {
                     self.lock.lock()
                     self.limitedUntil[engine] = Date().addingTimeInterval(60)
                     self.lock.unlock()
                 }
-                self.tryEngines(rest, text: text, target: target, key: key, completion: completion)
+                var next = failures
+                let reason = (e as? LocalizedError)?.errorDescription ?? e.localizedDescription
+                next.append((engine, reason))
+                self.tryEngines(rest, text: text, target: target, key: key, completion: completion, failures: next)
             }
         }
     }
@@ -234,7 +258,7 @@ final class TranslationService {
             guard let data,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [Any],
                   let sentences = json.first as? [Any] else {
-                completion(.failure(TranslationError.failed("Google parse")))
+                completion(.failure(TranslationError.failed("player.translate.error.googleParse".localized)))
                 return
             }
             var out = ""
@@ -284,7 +308,7 @@ final class TranslationService {
                   let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let rd = obj["responseData"] as? [String: Any],
                   let translated = rd["translatedText"] as? String else {
-                completion(.failure(TranslationError.failed("MyMemory parse")))
+                completion(.failure(TranslationError.failed("player.translate.error.myMemoryParse".localized)))
                 return
             }
             // MyMemory often returns the error string as translatedText when lang is invalid
@@ -323,7 +347,7 @@ final class TranslationService {
             guard let data,
                   let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let translated = obj["translation"] as? String else {
-                completion(.failure(TranslationError.failed("Lingva parse")))
+                completion(.failure(TranslationError.failed("player.translate.error.lingvaParse".localized)))
                 return
             }
             completion(.success(translated))
@@ -335,10 +359,11 @@ final class TranslationService {
         _ target: String,
         _ completion: @escaping (Result<String, Error>) -> Void
     ) {
-        let key = ProcessInfo.processInfo.environment["OPALINE_DEEPL_KEY"]
+        let key = TranslationPreferences.deepLAPIKey
+            ?? ProcessInfo.processInfo.environment["OPALINE_DEEPL_KEY"]
             ?? ProcessInfo.processInfo.environment["DEEPL_API_KEY"]
         guard let key, !key.isEmpty else {
-            completion(.failure(TranslationError.failed("No DeepL key")))
+            completion(.failure(TranslationError.noDeepLKey))
             return
         }
         let free = key.hasSuffix(":fx")
@@ -371,7 +396,7 @@ final class TranslationService {
                   let translations = obj["translations"] as? [[String: Any]],
                   let first = translations.first,
                   let translated = first["text"] as? String else {
-                completion(.failure(TranslationError.failed("DeepL parse")))
+                completion(.failure(TranslationError.failed("player.translate.error.deepLParse".localized)))
                 return
             }
             completion(.success(translated))

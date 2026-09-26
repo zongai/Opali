@@ -61,7 +61,33 @@ enum TranslationPreferences {
     }
 
     /// Ordered chain: preferred first, then the rest (DeepL last unless preferred).
-    static var engineChain: [TranslationEngine] {
+    
+    /// DeepL API key from Settings (optional). Free keys end with `:fx`.
+    static var deepLAPIKey: String? {
+        get {
+            let s = UserDefaults.standard.string(forKey: UserDefaultsKeys.Translation.deepLAPIKey)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return (s?.isEmpty == false) ? s : nil
+        }
+        set {
+            let trimmed = newValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let trimmed, !trimmed.isEmpty {
+                UserDefaults.standard.set(trimmed, forKey: UserDefaultsKeys.Translation.deepLAPIKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.Translation.deepLAPIKey)
+            }
+        }
+    }
+
+    static var deepLKeyDisplay: String {
+        guard let key = deepLAPIKey, !key.isEmpty else {
+            return "settings.translation.deepL.notSet".localized
+        }
+        if key.count <= 8 { return "••••" }
+        return String(key.prefix(4)) + "••••" + String(key.suffix(4))
+    }
+
+static var engineChain: [TranslationEngine] {
         let preferred = preferredEngine.asServiceEngine
         var rest = TranslationEngine.allCases.filter { $0 != preferred }
         // Keep DeepL at end of rest if not preferred

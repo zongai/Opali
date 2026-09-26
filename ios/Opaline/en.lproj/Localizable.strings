@@ -635,3 +635,20 @@
 "settings.row.defaultSpeed" = "Default speed";
 "settings.footer.defaultSpeed" = "Applied when opening a video. You can still change speed in the player.";
 "settings.footer.translationTarget" = "Used for title, comments, and captions. System follows the app language.";
+
+"settings.row.translationDeepLKey" = "DeepL API Key";
+"settings.footer.translationDeepLKey" = "Optional. Free keys end with :fx. Stored on this device only.";
+"settings.translation.deepL.placeholder" = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx";
+"settings.translation.deepL.clear" = "Clear Key";
+"settings.translation.deepL.notSet" = "Not set";
+"player.translate.error.empty" = "Nothing to translate.";
+"player.translate.error.rateLimited" = "%@ is rate-limited. Try again later.";
+"player.translate.error.rateLimitedShort" = "Rate limited";
+"player.translate.error.noDeepLKey" = "DeepL needs an API key. Add one in Settings → Language → DeepL API Key.";
+"player.translate.error.allFailed" = "All translation engines failed (target: %@).";
+"player.translate.error.unknown" = "Unknown error";
+"player.translate.error.emptyResult" = "Empty response";
+"player.translate.error.googleParse" = "Google returned an unexpected response";
+"player.translate.error.myMemoryParse" = "MyMemory returned an unexpected response";
+"player.translate.error.lingvaParse" = "Lingva returned an unexpected response";
+"player.translate.error.deepLParse" = "DeepL returned an unexpected response";

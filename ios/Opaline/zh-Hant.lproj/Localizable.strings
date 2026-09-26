@@ -579,3 +579,20 @@
 "settings.row.defaultSpeed" = "預設速度";
 "settings.footer.defaultSpeed" = "開啟影片時使用。播放中仍可在播放器內暫時調整。";
 "settings.footer.translationTarget" = "用於標題、留言與字幕。跟隨系統時使用應用介面語言。";
+
+"settings.row.translationDeepLKey" = "DeepL API 金鑰";
+"settings.footer.translationDeepLKey" = "選用。免費金鑰以 :fx 結尾。僅保存在本機。";
+"settings.translation.deepL.placeholder" = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx";
+"settings.translation.deepL.clear" = "清除金鑰";
+"settings.translation.deepL.notSet" = "未設定";
+"player.translate.error.empty" = "沒有可翻譯的內容。";
+"player.translate.error.rateLimited" = "%@ 請求過於頻繁，請稍後再試。";
+"player.translate.error.rateLimitedShort" = "請求受限";
+"player.translate.error.noDeepLKey" = "DeepL 需要 API 金鑰。請在 設定 → 語言 → DeepL API 金鑰 中填寫。";
+"player.translate.error.allFailed" = "全部翻譯引擎均失敗（目標語言：%@）。";
+"player.translate.error.unknown" = "未知錯誤";
+"player.translate.error.emptyResult" = "返回為空";
+"player.translate.error.googleParse" = "Google 返回異常";
+"player.translate.error.myMemoryParse" = "MyMemory 返回異常";
+"player.translate.error.lingvaParse" = "Lingva 返回異常";
+"player.translate.error.deepLParse" = "DeepL 返回異常";

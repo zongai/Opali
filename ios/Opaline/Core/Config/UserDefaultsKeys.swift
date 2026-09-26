@@ -104,6 +104,8 @@ enum UserDefaultsKeys {
         static let targetLanguage = "translation_targetLanguage"
         /// Preferred engine raw value (google / myMemory / lingva / deepL).
         static let preferredEngine = "translation_preferredEngine"
+        /// DeepL API key (user-entered in Settings).
+        static let deepLAPIKey = "translation_deepLAPIKey"
     }
 
     enum Playback {

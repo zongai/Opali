@@ -16,7 +16,7 @@ final class SettingsViewController: UIViewController {
         case autoZoomToFill
         case autoplayEnabled, autoplayMixEnabled
         case autoDubEnabled, autoDubLanguage, autoDubIgnoreAI
-        case translationTarget, translationEngine
+        case translationTarget, translationEngine, translationDeepLKey
         case defaultPlaybackSpeed
         case homeLayout, defaultTab
         case persistCache, feedCacheDays
@@ -310,6 +310,8 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
             return makeTranslationTargetCell()
         case .translationEngine:
             return makeTranslationEngineCell()
+        case .translationDeepLKey:
+            return makeTranslationDeepLKeyCell()
         case .defaultPlaybackSpeed:
             return makeDefaultSpeedCell()
         case .homeLayout:

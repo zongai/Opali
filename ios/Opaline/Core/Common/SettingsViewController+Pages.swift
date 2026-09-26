@@ -125,7 +125,7 @@ extension SettingsViewController {
             Section(
                 header: "settings.section.translation".localized,
                 footer: "settings.footer.translation".localized,
-                rows: [.translationTarget, .translationEngine]
+                rows: [.translationTarget, .translationEngine, .translationDeepLKey]
             )
         ]
     }

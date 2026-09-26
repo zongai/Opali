@@ -49,16 +49,21 @@ extension WatchViewController {
         let group = DispatchGroup()
         var newTitle: String?
         var newDesc: String?
+        var lastError: Error?
         group.enter()
         TranslationService.shared.translate(title) { result in
-            if case .success(let s) = result { newTitle = s }
+            switch result {
+            case .success(let s): newTitle = s
+            case .failure(let e): lastError = e
+            }
             group.leave()
         }
         if !desc.isEmpty {
             group.enter()
             TranslationService.shared.translate(desc) { result in
-                if case .success(let s) = result {
-                    newDesc = s
+                switch result {
+                case .success(let s): newDesc = s
+                case .failure(let e): lastError = e
                 }
                 group.leave()
             }
@@ -74,7 +79,7 @@ extension WatchViewController {
                 self.applyTranslatedDescription()
             }
             if newTitle == nil && newDesc == nil {
-                self.showTranslationToast("player.translate.failed".localized)
+                self.presentTranslationFailure(error: lastError)
             }
         }
     }
@@ -112,7 +117,7 @@ extension WatchViewController {
         guard !isTranslating else { return }
         let comments = commentThreads.map(\.comment) + commentThreads.flatMap(\.replies)
         guard !comments.isEmpty else {
-            showTranslationToast("player.translate.noComments".localized)
+            presentTranslationFailure(message: "player.translate.noComments".localized)
             return
         }
         isTranslating = true
@@ -127,8 +132,8 @@ extension WatchViewController {
                         self.commentTranslations[c.id] = texts[i]
                     }
                     self.renderComments()
-                                    case .failure:
-                    self.showTranslationToast("player.translate.failed".localized)
+                case .failure(let error):
+                    self.presentTranslationFailure(error: error)
                 }
             }
         }
@@ -137,7 +142,7 @@ extension WatchViewController {
     func translateActiveCaptions() {
         guard let lang = activeSubtitleLanguage,
               let track = captionTracks.first(where: { $0.languageCode == lang }) else {
-            showTranslationToast("player.translate.noCaptions".localized)
+            presentTranslationFailure(message: "player.translate.noCaptions".localized)
             return
         }
         guard !isTranslating else { return }
@@ -151,22 +156,36 @@ extension WatchViewController {
                     switch result {
                     case .success(let translated):
                         let newCues = zip(cues, translated).map { cue, t in
-                            SubtitleCue(start: cue.start, end: cue.end, text: t.isEmpty ? cue.text : t)
+                            SubtitleCue(
+                                start: cue.start,
+                                end: cue.end,
+                                text: t.isEmpty ? cue.text : t
+                            )
                         }
                         self.videoPlayerView?.setSubtitleCues(newCues)
-                                            case .failure:
-                        self.showTranslationToast("player.translate.failed".localized)
+                    case .failure(let error):
+                        self.presentTranslationFailure(error: error)
                     }
                 }
             }
         }
     }
 
-    func showTranslationToast(_ message: String) {
-        let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+    /// Failure alert with full message (engine list, DeepL key hint, etc.).
+    func presentTranslationFailure(message: String) {
+        let alert = UIAlertController(
+            title: "player.translate.failed".localized,
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "common.ok".localized, style: .default))
         present(alert, animated: true)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            alert.dismiss(animated: true)
-        }
+    }
+
+    func presentTranslationFailure(error: Error?) {
+        let msg = (error as? LocalizedError)?.errorDescription
+            ?? error?.localizedDescription
+            ?? "player.translate.failed".localized
+        presentTranslationFailure(message: msg)
     }
 }

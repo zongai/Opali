@@ -17,6 +17,13 @@ extension SettingsViewController {
         )
     }
 
+    func makeTranslationDeepLKeyCell() -> UITableViewCell {
+        makeDisclosureCell(
+            "settings.row.translationDeepLKey".localized,
+            value: TranslationPreferences.deepLKeyDisplay
+        )
+    }
+
     /// Inline speed control for common rates; full list via the accessory tap area.
     func makeDefaultSpeedCell() -> UITableViewCell {
         let theme = ThemeManager.shared
@@ -75,6 +82,8 @@ extension SettingsViewController {
             showTranslationTargetPicker()
         case .translationEngine:
             showTranslationEnginePicker()
+        case .translationDeepLKey:
+            showDeepLKeyEditor()
         default:
             return false
         }
@@ -164,5 +173,34 @@ extension SettingsViewController {
         sheet.addAction(UIAlertAction(title: "common.cancel".localized, style: .cancel))
         configureCenteredPopover(sheet)
         present(sheet, animated: true)
+    }
+
+    private func showDeepLKeyEditor() {
+        let alert = UIAlertController(
+            title: "settings.row.translationDeepLKey".localized,
+            message: "settings.footer.translationDeepLKey".localized,
+            preferredStyle: .alert
+        )
+        alert.addTextField { tf in
+            tf.placeholder = "settings.translation.deepL.placeholder".localized
+            tf.isSecureTextEntry = true
+            tf.autocapitalizationType = .none
+            tf.autocorrectionType = .no
+            tf.text = TranslationPreferences.deepLAPIKey
+        }
+        alert.addAction(UIAlertAction(title: "common.cancel".localized, style: .cancel))
+        alert.addAction(UIAlertAction(
+            title: "settings.translation.deepL.clear".localized,
+            style: .destructive
+        ) { [weak self] _ in
+            TranslationPreferences.deepLAPIKey = nil
+            self?.reloadAllSettings()
+        })
+        alert.addAction(UIAlertAction(title: "common.save".localized, style: .default) { [weak self] _ in
+            let text = alert.textFields?.first?.text
+            TranslationPreferences.deepLAPIKey = text
+            self?.reloadAllSettings()
+        })
+        present(alert, animated: true)
     }
 }
