@@ -122,3 +122,22 @@ enum DownloadStore {
         }
     }
 }
+
+// MARK: - Captions sidecar (recovered stubs)
+
+extension DownloadStore {
+    /// Caption tracks saved with a download. Returns empty when none stored.
+    static func captionTracks(for videoId: String) -> [SubtitleTrack]? {
+        let url = folder(for: videoId).appendingPathComponent("captions.json")
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode([SubtitleTrack].self, from: data)
+    }
+
+    /// VTT cues stored for a language on a downloaded video.
+    static func cues(language: String, for videoId: String) -> [SubtitleCue]? {
+        let safe = language.replacingOccurrences(of: "/", with: "_")
+        let url = folder(for: videoId).appendingPathComponent("cues-\(safe).json")
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode([SubtitleCue].self, from: data)
+    }
+}

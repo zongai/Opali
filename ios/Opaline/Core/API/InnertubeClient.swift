@@ -393,3 +393,18 @@ private extension InnertubeClient {
         }
     }
 }
+
+// MARK: - Watch progress (recovered stub)
+
+extension InnertubeClient {
+    /// Returns ([videoId: fraction], [videoId: thumbnailURL]) from history.
+    func fetchHistoryProgress(
+        completion: @escaping (([String: Double], [String: URL])) -> Void
+    ) {
+        // Full history parsing lives in missing InnertubeClient+HistoryShorts;
+        // return empty until that extension is restored.
+        DispatchQueue.main.async {
+            completion(([:], [:]))
+        }
+    }
+}
