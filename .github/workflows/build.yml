@@ -58,7 +58,7 @@ jobs:
 
   ios:
     name: iOS (unsigned IPA)
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -108,7 +108,7 @@ jobs:
     name: Publish GitHub Release
     needs: [windows, ios]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && always() && needs.windows.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
@@ -119,13 +119,14 @@ jobs:
           path: dist
 
       - name: Download iOS artifacts
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: ios-release
           path: dist
 
       - name: List dist
-        run: ls -lah dist/
+        run: ls -lah dist/ || true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -140,10 +141,10 @@ jobs:
             - `Opaline.App.exe` — 主程序（仍需同目录 DLL，推荐用 zip）
 
             ### iOS
-            - `Opaline-iOS-unsigned.ipa` — **未签名** IPA（越狱 / AppSync / 侧载工具）
-            - `Opaline_0.0.${{ github.run_number }}.ipa` — 带版本号的同内容 IPA
+            - `Opaline-iOS-unsigned.ipa` — **未签名** IPA（越狱 / AppSync / 侧载）
+            - `Opaline_0.0.${{ github.run_number }}.ipa` — 带版本号 IPA
 
-            安装 iOS：拷到设备 → Filza 打开 → Install（需 AppSync 等）。
+            安装 iOS：拷到设备 → Filza → Install（需 AppSync）。
           files: |
             dist/Opaline-Windows-x64.zip
             dist/Opaline.App.exe
