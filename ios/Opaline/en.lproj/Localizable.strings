@@ -660,3 +660,8 @@ key2:fx";
 "video.menu.feedbackGeneric" = "Hide";
 "video.menu.feedbackFailed" = "Couldn't update recommendations";
 "settings.translation.deepL.keyCount" = "%d keys";
+"settings.translation.deepL.edit" = "Edit keys";
+"settings.translation.deepL.test" = "Test keys";
+"settings.translation.deepL.testing" = "Checking…";
+"settings.translation.deepL.testOK" = "OK";
+"settings.translation.deepL.testSummary" = "%d / %d keys available";

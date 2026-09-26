@@ -604,3 +604,8 @@ key2:fx";
 "video.menu.feedbackGeneric" = "隐藏";
 "video.menu.feedbackFailed" = "无法更新推荐";
 "settings.translation.deepL.keyCount" = "%d 个密钥";
+"settings.translation.deepL.edit" = "编辑密钥";
+"settings.translation.deepL.test" = "测试可用性";
+"settings.translation.deepL.testing" = "正在检测…";
+"settings.translation.deepL.testOK" = "可用";
+"settings.translation.deepL.testSummary" = "%d / %d 个密钥可用";

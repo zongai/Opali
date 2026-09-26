@@ -83,7 +83,7 @@ extension SettingsViewController {
         case .translationEngine:
             showTranslationEnginePicker()
         case .translationDeepLKey:
-            showDeepLKeyEditor()
+            showDeepLKeyOptions()
         default:
             return false
         }
@@ -175,6 +175,38 @@ extension SettingsViewController {
         present(sheet, animated: true)
     }
 
+    private func showDeepLKeyOptions() {
+        let sheet = UIAlertController(
+            title: "settings.row.translationDeepLKey".localized,
+            message: TranslationPreferences.deepLKeyDisplay,
+            preferredStyle: .actionSheet
+        )
+        sheet.addAction(UIAlertAction(
+            title: "settings.translation.deepL.edit".localized,
+            style: .default
+        ) { [weak self] _ in
+            self?.showDeepLKeyEditor()
+        })
+        sheet.addAction(UIAlertAction(
+            title: "settings.translation.deepL.test".localized,
+            style: .default
+        ) { [weak self] _ in
+            self?.testDeepLKeys()
+        })
+        if !TranslationPreferences.deepLAPIKeys.isEmpty {
+            sheet.addAction(UIAlertAction(
+                title: "settings.translation.deepL.clear".localized,
+                style: .destructive
+            ) { [weak self] _ in
+                TranslationPreferences.deepLAPIKeys = []
+                self?.reloadAllSettings()
+            })
+        }
+        sheet.addAction(UIAlertAction(title: "common.cancel".localized, style: .cancel))
+        configureCenteredPopover(sheet)
+        present(sheet, animated: true)
+    }
+
     private func showDeepLKeyEditor() {
         let alert = UIAlertController(
             title: "settings.row.translationDeepLKey".localized,
@@ -187,16 +219,20 @@ extension SettingsViewController {
             tf.autocapitalizationType = .none
             tf.autocorrectionType = .no
             tf.keyboardType = .asciiCapable
-            // One key per line (or comma-separated). Pasting multi-line works.
             tf.text = TranslationPreferences.deepLKeysEditorText
         }
         alert.addAction(UIAlertAction(title: "common.cancel".localized, style: .cancel))
         alert.addAction(UIAlertAction(
-            title: "settings.translation.deepL.clear".localized,
-            style: .destructive
+            title: "settings.translation.deepL.test".localized,
+            style: .default
         ) { [weak self] _ in
-            TranslationPreferences.deepLAPIKeys = []
-            self?.reloadAllSettings()
+            let text = alert.textFields?.first?.text
+            let keys = TranslationPreferences.parseKeyBlob(text ?? "")
+            // Keep typed keys if user was editing
+            if !keys.isEmpty {
+                TranslationPreferences.deepLAPIKeys = keys
+            }
+            self?.testDeepLKeys(keys: keys.isEmpty ? nil : keys)
         })
         alert.addAction(UIAlertAction(title: "common.save".localized, style: .default) { [weak self] _ in
             let text = alert.textFields?.first?.text
@@ -205,4 +241,49 @@ extension SettingsViewController {
         })
         present(alert, animated: true)
     }
+
+    private func testDeepLKeys(keys: [String]? = nil) {
+        let list = keys ?? TranslationPreferences.deepLAPIKeys
+        guard !list.isEmpty else {
+            let alert = UIAlertController(
+                title: "settings.translation.deepL.test".localized,
+                message: "settings.translation.deepL.notSet".localized,
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "common.ok".localized, style: .default))
+            present(alert, animated: true)
+            return
+        }
+        let loading = UIAlertController(
+            title: "settings.translation.deepL.test".localized,
+            message: "settings.translation.deepL.testing".localized,
+            preferredStyle: .alert
+        )
+        present(loading, animated: true)
+        TranslationService.shared.testDeepLKeys(list) { [weak self] results in
+            loading.dismiss(animated: true) {
+                let lines = results.map { r in
+                    let mark = r.ok ? "✓" : "✗"
+                    return "\(mark) \(r.mask)
+  \(r.detail)"
+                }
+                let okCount = results.filter(\.ok).count
+                let summary = "settings.translation.deepL.testSummary".localized(
+                    with: okCount, results.count
+                )
+                let body = ([summary] + lines).joined(separator: "
+
+")
+                let alert = UIAlertController(
+                    title: "settings.translation.deepL.test".localized,
+                    message: body,
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "common.ok".localized, style: .default))
+                self?.present(alert, animated: true)
+                self?.reloadAllSettings()
+            }
+        }
+    }
 }
+

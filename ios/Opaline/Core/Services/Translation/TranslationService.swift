@@ -354,6 +354,49 @@ final class TranslationService {
         }.resume()
     }
 
+    // MARK: - DeepL key test
+
+    /// Probe each key with a tiny translate request. Reports per-key OK / error.
+    func testDeepLKeys(
+        _ keys: [String]? = nil,
+        completion: @escaping ([(mask: String, ok: Bool, detail: String)]) -> Void
+    ) {
+        let list = keys ?? TranslationPreferences.deepLAPIKeys
+        guard !list.isEmpty else {
+            completion([])
+            return
+        }
+        var results = Array(repeating: (mask: "", ok: false, detail: ""), count: list.count)
+        let group = DispatchGroup()
+        let lock = NSLock()
+        for (i, key) in list.enumerated() {
+            group.enter()
+            deepLRequest(text: "OK", target: "EN", apiKey: key) { result in
+                let mask = Self.maskKey(key)
+                let entry: (mask: String, ok: Bool, detail: String)
+                switch result {
+                case .success:
+                    entry = (mask, true, "settings.translation.deepL.testOK".localized)
+                case .failure(let e):
+                    let detail = (e as? LocalizedError)?.errorDescription ?? e.localizedDescription
+                    entry = (mask, false, detail)
+                }
+                lock.lock()
+                results[i] = entry
+                lock.unlock()
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) {
+            completion(results)
+        }
+    }
+
+    private static func maskKey(_ key: String) -> String {
+        if key.count <= 8 { return "••••" }
+        return String(key.prefix(4)) + "••••" + String(key.suffix(4))
+    }
+
     private func deepL(
         _ text: String,
         _ target: String,
