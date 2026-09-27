@@ -3,7 +3,10 @@ import Foundation
 struct SubtitleCue: Codable {
     let start: TimeInterval
     let end: TimeInterval
+    /// Original / display text (source language).
     let text: String
+    /// Optional translated line for bilingual display (kiss-style).
+    var translation: String? = nil
 }
 
 // swiftlint:disable file_length

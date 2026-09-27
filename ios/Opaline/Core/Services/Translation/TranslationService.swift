@@ -162,6 +162,7 @@ final class TranslationService {
     func translate(
         _ text: String,
         target: String = preferredTarget,
+        source: String? = nil,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -170,24 +171,35 @@ final class TranslationService {
             return
         }
         let normalizedTarget = TranslationLanguageNorm.canonical(target)
+        let normalizedSource = source.map { TranslationLanguageNorm.canonical($0) }
         // Client-side detect: skip when already in the target language.
-        if let detected = Self.detectSourceLanguage(of: trimmed),
+        if let src = normalizedSource,
+           TranslationLanguageNorm.isSameLanguage(src, normalizedTarget) {
+            completion(.success(trimmed))
+            return
+        }
+        if normalizedSource == nil,
+           let detected = Self.detectSourceLanguage(of: trimmed),
            TranslationLanguageNorm.isSameLanguage(detected, normalizedTarget) {
             completion(.success(trimmed))
             return
         }
-        let key = "\(normalizedTarget)|\(trimmed)" as NSString
+        let key = "\(normalizedSource ?? "auto")|\(normalizedTarget)|\(trimmed)" as NSString
         if let hit = cache.object(forKey: key) {
             completion(.success(hit as String))
             return
         }
         let engines = TranslationPreferences.engineChain
-        tryEngines(engines, text: trimmed, target: normalizedTarget, key: key, completion: completion)
+        tryEngines(
+            engines, text: trimmed, target: normalizedTarget,
+            source: normalizedSource, key: key, completion: completion
+        )
     }
 
     func translateMany(
         _ texts: [String],
         target: String = preferredTarget,
+        source: String? = nil,
         completion: @escaping (Result<[String], Error>) -> Void
     ) {
         guard !texts.isEmpty else {
@@ -200,7 +212,7 @@ final class TranslationService {
         let lock = NSLock()
         for (i, t) in texts.enumerated() {
             group.enter()
-            translate(t, target: target) { result in
+            translate(t, target: target, source: source) { result in
                 switch result {
                 case .success(let s):
                     results[i] = s
@@ -270,6 +282,7 @@ final class TranslationService {
         _ engines: [TranslationEngine],
         text: String,
         target: String,
+        source: String?,
         key: NSString,
         completion: @escaping (Result<String, Error>) -> Void,
         failures: [(TranslationEngine, String)] = []
@@ -287,12 +300,12 @@ final class TranslationService {
             lock.unlock()
             var next = failures
             next.append((engine, "player.translate.error.rateLimitedShort".localized))
-            tryEngines(rest, text: text, target: target, key: key, completion: completion, failures: next)
+            tryEngines(rest, text: text, target: target, source: source, key: key, completion: completion, failures: next)
             return
         }
         lock.unlock()
 
-        translate(engine: engine, text: text, target: target) { [weak self] result in
+        translate(engine: engine, text: text, target: target, source: source) { [weak self] result in
             guard let self else { return }
             switch result {
             case .success(let s) where !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty:
@@ -301,7 +314,7 @@ final class TranslationService {
             case .success:
                 var next = failures
                 next.append((engine, "player.translate.error.emptyResult".localized))
-                self.tryEngines(rest, text: text, target: target, key: key, completion: completion, failures: next)
+                self.tryEngines(rest, text: text, target: target, source: source, key: key, completion: completion, failures: next)
             case .failure(let e):
                 if case TranslationError.rateLimited = e {
                     self.lock.lock()
@@ -311,7 +324,7 @@ final class TranslationService {
                 var next = failures
                 let reason = (e as? LocalizedError)?.errorDescription ?? e.localizedDescription
                 next.append((engine, reason))
-                self.tryEngines(rest, text: text, target: target, key: key, completion: completion, failures: next)
+                self.tryEngines(rest, text: text, target: target, source: source, key: key, completion: completion, failures: next)
             }
         }
     }
@@ -320,12 +333,13 @@ final class TranslationService {
         engine: TranslationEngine,
         text: String,
         target: String,
+        source: String?,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
         switch engine {
-        case .google: google(text, target, completion)
-        case .myMemory: myMemory(text, target, completion)
-        case .lingva: lingva(text, target, completion)
+        case .google: google(text, target, source: source, completion)
+        case .myMemory: myMemory(text, target, source: source, completion)
+        case .lingva: lingva(text, target, source: source, completion)
         case .yandex: YandexTranslateEngine.translate(text, target: target, completion: completion)
         case .azureBing: AzureBingTranslateEngine.translate(text, target: target, completion: completion)
         case .deepL: deepL(text, target, completion)
@@ -337,13 +351,15 @@ final class TranslationService {
     private func google(
         _ text: String,
         _ target: String,
+        source: String? = nil,
         _ completion: @escaping (Result<String, Error>) -> Void
     ) {
         var comps = URLComponents(string: "https://translate.googleapis.com/translate_a/single")!
         let tl = TranslationLanguageNorm.forGoogle(target)
+        let sl = source.map { TranslationLanguageNorm.forGoogle($0) } ?? "auto"
         comps.queryItems = [
             URLQueryItem(name: "client", value: "gtx"),
-            URLQueryItem(name: "sl", value: "auto"),
+            URLQueryItem(name: "sl", value: sl),
             URLQueryItem(name: "tl", value: tl),
             URLQueryItem(name: "dt", value: "t"),
             URLQueryItem(name: "q", value: text)
@@ -398,13 +414,15 @@ final class TranslationService {
     private func myMemory(
         _ text: String,
         _ target: String,
+        source: String? = nil,
         _ completion: @escaping (Result<String, Error>) -> Void
     ) {
         let tl = TranslationLanguageNorm.forMyMemory(target)
+        let sl = source.map { TranslationLanguageNorm.forMyMemory($0) } ?? "Autodetect"
         var comps = URLComponents(string: "https://api.mymemory.translated.net/get")!
         comps.queryItems = [
             URLQueryItem(name: "q", value: String(text.prefix(500))),
-            URLQueryItem(name: "langpair", value: "autodetect|\(tl)")
+            URLQueryItem(name: "langpair", value: "\(sl)|\(tl)")
         ]
         guard let url = comps.url else {
             completion(.failure(TranslationError.failed("Bad MyMemory URL")))
@@ -442,11 +460,13 @@ final class TranslationService {
     private func lingva(
         _ text: String,
         _ target: String,
+        source: String? = nil,
         _ completion: @escaping (Result<String, Error>) -> Void
     ) {
         let tl = TranslationLanguageNorm.forLingva(target)
+        let sl = source.map { TranslationLanguageNorm.forLingva($0) } ?? "auto"
         let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? text
-        guard let url = URL(string: "https://lingva.ml/api/v1/auto/\(tl)/\(encoded)") else {
+        guard let url = URL(string: "https://lingva.ml/api/v1/\(sl)/\(tl)/\(encoded)") else {
             completion(.failure(TranslationError.failed("Bad Lingva URL")))
             return
         }
