@@ -12,6 +12,7 @@ public sealed class Video
     public string? ChannelTitle { get; init; }
     public string? ChannelAvatarUrl { get; init; }
     public string? ThumbnailUrl { get; init; }
+    public IReadOnlyList<FeedbackAction> FeedbackActions { get; init; } = Array.Empty<FeedbackAction>();
     public TimeSpan? Duration { get; init; }
     public long? ViewCount { get; init; }
     public DateTimeOffset? PublishedAt { get; init; }

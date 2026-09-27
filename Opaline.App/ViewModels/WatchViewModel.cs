@@ -1,3 +1,4 @@
+using Opaline.Core.Net;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -149,7 +150,15 @@ public partial class WatchViewModel : ObservableObject
         try
         {
             AppLog.Info("Watch", $"load {videoId}");
-            _page = await _yt.GetWatchAsync(videoId);
+            try
+            {
+                _page = await _yt.GetWatchAsync(videoId);
+            }
+            catch (Exception ex) when (AppHttp.IsTransientSsl(ex))
+            {
+                await Task.Delay(500);
+                _page = await _yt.GetWatchAsync(videoId);
+            }
             Video = _page.Video;
             DisplayTitle = Video.Title;
             DisplayChannel = Video.ChannelTitle ?? "";
@@ -362,12 +371,27 @@ public partial class WatchViewModel : ObservableObject
         {
             SelectedQualityName = stream.DisplayLabel;
             QualityLabel = stream.DisplayLabel;
-            // Resolve signatures (s/n) and pair with best audio when adaptive
+            // Prefer height-capped full resolve (handles cipher + adaptive pair)
+            var maxH = stream.Height ?? 1080;
+            var resolved = await _playback.ResolveAsync(_page, maxHeight: maxH).ConfigureAwait(true);
+            if (resolved is not null && !string.IsNullOrEmpty(resolved.PrimaryUrl))
+            {
+                _resolved = resolved;
+                PlayableUrl = resolved.PrimaryUrl;
+                AudioUrl = resolved.Audio?.Url;
+                IsManifest = resolved.Kind is StreamKind.HlsManifest or StreamKind.DashManifest;
+                StreamKindLabel = resolved.Kind.ToString();
+                QualityLabel = resolved.Video.DisplayLabel ?? stream.DisplayLabel;
+                ErrorMessage = null;
+                AppLog.Info("Watch", $"quality resolve -> {QualityLabel}");
+                return;
+            }
+            // Fallback: finalize selected stream URL only
             var videoUrl = await _resolver.FinalizeUrlAsync(
                 stream.Url, _page.Video.Id, stream.SigChallenge, stream.SigParam).ConfigureAwait(true);
             if (string.IsNullOrEmpty(videoUrl))
             {
-                ErrorMessage = "Could not resolve stream URL for " + stream.DisplayLabel;
+                ErrorMessage = "Could not resolve stream URL for " + stream.DisplayLabel + "（可尝试其他画质或刷新）";
                 return;
             }
             string? audioUrl = null;
@@ -393,6 +417,44 @@ public partial class WatchViewModel : ObservableObject
             ErrorMessage = $"Quality switch failed: {ex.Message}";
             AppLog.Error("Watch", "SelectQuality", ex);
         }
+    }
+
+    
+    [RelayCommand]
+    public async Task NotInterestedAsync()
+    {
+        var a = Video?.FeedbackActions?.FirstOrDefault(x => x.Kind == "not_interested")
+            ?? Video?.FeedbackActions?.FirstOrDefault();
+        if (a is null || string.IsNullOrEmpty(a.Token))
+        {
+            ErrorMessage = "当前视频无「不感兴趣」令牌（需登录后的推荐流）";
+            return;
+        }
+        try
+        {
+            var ok = await _yt.SendFeedbackAsync(a.Token);
+            ErrorMessage = ok ? "已反馈：不感兴趣" : "反馈未处理（可能需重新登录）";
+            if (ok) HasError = false;
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+    }
+
+    [RelayCommand]
+    public async Task DontRecommendChannelAsync()
+    {
+        var a = Video?.FeedbackActions?.FirstOrDefault(x => x.Kind == "dont_recommend_channel")
+            ?? Video?.FeedbackActions?.FirstOrDefault(x => x.Kind != "not_interested");
+        if (a is null || string.IsNullOrEmpty(a.Token))
+        {
+            ErrorMessage = "当前视频无「不推荐频道」令牌（需登录后的推荐流）";
+            return;
+        }
+        try
+        {
+            var ok = await _yt.SendFeedbackAsync(a.Token);
+            ErrorMessage = ok ? "已反馈：不推荐该频道" : "反馈未处理（可能需重新登录）";
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
     }
 
     [RelayCommand]

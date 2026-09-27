@@ -1,3 +1,4 @@
+using Opaline.Core.Net;
 using Opaline.Core.Models;
 using Opaline.Core.Playback.Sabr;
 using System.Net;

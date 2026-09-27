@@ -534,4 +534,92 @@ public sealed partial class InnertubeClient
             .ThenBy(t => t.DisplayName)
             .ToList();
     }
+
+    /// <summary>iOS sendFeedback — WEB client, feedbackTokens array.</summary>
+    public async Task<bool> SendFeedbackAsync(string feedbackToken, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(feedbackToken)) return false;
+        var body = BuildContext(new
+        {
+            feedbackTokens = new[] { feedbackToken },
+            isFeedbackTokenUnencrypted = false,
+            shouldMerge = false
+        }, ClientIdentity.Web);
+        var json = await PostAsync("feedback", body, ClientIdentity.Web, sendAuth: true, ct).ConfigureAwait(false);
+        var responses = json["feedbackResponses"] as JsonArray;
+        if (responses is null || responses.Count == 0) return true;
+        var processed = responses[0]?["isProcessed"]?.GetValue<bool>();
+        return processed != false;
+    }
+
+    public static IReadOnlyList<FeedbackAction> ParseFeedbackActions(JsonNode? root)
+    {
+        var list = new List<FeedbackAction>();
+        if (root is null) return list;
+        void Walk(JsonNode? n)
+        {
+            if (n is null) return;
+            if (n is JsonObject obj)
+            {
+                string? token = null;
+                string? icon = null;
+                string? label = null;
+                if (obj.TryGetPropertyValue("feedbackEndpoint", out var fe) && fe is JsonObject feo)
+                {
+                    token = feo["feedbackToken"]?.GetValue<string>();
+                }
+                if (token is null && obj.TryGetPropertyValue("serviceEndpoint", out var se))
+                    token = se?["feedbackEndpoint"]?["feedbackToken"]?.GetValue<string>();
+                if (token is null)
+                    token = obj["command"]?["feedbackEndpoint"]?["feedbackToken"]?.GetValue<string>();
+                if (token is null)
+                    token = obj["innertubeCommand"]?["feedbackEndpoint"]?["feedbackToken"]?.GetValue<string>();
+
+                icon = obj["icon"]?["iconType"]?.GetValue<string>()
+                    ?? obj["iconName"]?.GetValue<string>();
+                label = obj["title"]?["simpleText"]?.GetValue<string>()
+                    ?? obj["title"]?["runs"]?.AsArray()?.FirstOrDefault()?["text"]?.GetValue<string>()
+                    ?? obj["text"]?["simpleText"]?.GetValue<string>();
+
+                if (!string.IsNullOrEmpty(token) && !list.Any(a => a.Token == token))
+                {
+                    var kind = ClassifyFeedback(icon, label);
+                    list.Add(new FeedbackAction
+                    {
+                        Token = token!,
+                        Label = label ?? DefaultLabel(kind),
+                        Kind = kind
+                    });
+                }
+                foreach (var kv in obj) Walk(kv.Value);
+            }
+            else if (n is JsonArray arr)
+            {
+                foreach (var c in arr) Walk(c);
+            }
+        }
+        Walk(root);
+        return list;
+    }
+
+    private static string ClassifyFeedback(string? icon, string? label)
+    {
+        var s = ((icon ?? "") + " " + (label ?? "")).ToUpperInvariant();
+        if (s.Contains("NOT_INTERESTED") || s.Contains("NOT INTERESTED") || s.Contains("不感兴趣"))
+            return "not_interested";
+        if (s.Contains("NOT_RECOMMENDED") || s.Contains("NO_RECOMMEND") || s.Contains("DONT_RECOMMEND")
+            || s.Contains("DON'T RECOMMEND") || s.Contains("不推荐") || s.Contains("CHANNEL") && s.Contains("FEEDBACK"))
+            return "dont_recommend_channel";
+        if (s.Contains("NOT_INTERESTED") || s.Contains("FEEDBACK"))
+            return s.Contains("CHANNEL") ? "dont_recommend_channel" : "not_interested";
+        return "generic";
+    }
+
+    private static string DefaultLabel(string kind) => kind switch
+    {
+        "not_interested" => "不感兴趣",
+        "dont_recommend_channel" => "不推荐该频道",
+        _ => "反馈"
+    };
+
 }

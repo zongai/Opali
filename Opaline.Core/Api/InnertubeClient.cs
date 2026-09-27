@@ -605,7 +605,8 @@ public sealed partial class InnertubeClient
             Title = title,
             ChannelTitle = channel,
             ThumbnailUrl = thumb,
-            IsLive = tile["onSelectCommand"]?["watchEndpoint"]?["ustreamerConfig"] is not null
+            IsLive = tile["onSelectCommand"]?["watchEndpoint"]?["ustreamerConfig"] is not null,
+            FeedbackActions = ParseFeedbackActions(tile)
         };
     }
 
@@ -676,7 +677,8 @@ public sealed partial class InnertubeClient
             ChannelTitle = channel,
             ThumbnailUrl = thumb,
             Duration = duration,
-            ViewCount = ParseViewCount(viewsText)
+            ViewCount = ParseViewCount(viewsText),
+            FeedbackActions = ParseFeedbackActions(lockup)
         };
     }
 
@@ -743,7 +745,8 @@ public sealed partial class InnertubeClient
             ThumbnailUrl = vr["thumbnail"]?["thumbnails"]?.AsArray()?.LastOrDefault()?["url"]?.GetValue<string>(),
             Duration = duration,
             ViewCount = ParseViewCount(vr["viewCountText"]?["simpleText"]?.GetValue<string>()
-                                     ?? vr["viewCountText"]?["runs"]?.AsArray()?.FirstOrDefault()?["text"]?.GetValue<string>())
+                                     ?? vr["viewCountText"]?["runs"]?.AsArray()?.FirstOrDefault()?["text"]?.GetValue<string>()),
+            FeedbackActions = ParseFeedbackActions(vr)
         };
     }
 

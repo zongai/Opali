@@ -6,6 +6,7 @@ using Opaline.Core.Api;
 using Opaline.Core.Auth;
 using Opaline.Core.Playback;
 using Opaline.Core.Services;
+using Opaline.Core.Net;
 using Opaline.Core.Services.Translation;
 using Opaline.Core.Services.Ryd;
 using Opaline.Core.Services.SponsorBlock;
@@ -59,7 +60,7 @@ public partial class App : Application
         // Separate clients: shared DefaultRequestHeaders on one instance is racy
         sc.AddSingleton(_ =>
         {
-            var http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
+            var http = AppHttp.Create(TimeSpan.FromSeconds(45));
             return http;
         });
 
@@ -70,7 +71,7 @@ public partial class App : Application
         sc.AddSingleton(sp =>
         {
             // Fresh HttpClient for Innertube so User-Agent headers do not clash with OAuth
-            var http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
+            var http = AppHttp.Create(TimeSpan.FromSeconds(45));
             var client = new InnertubeClient(http, ClientIdentity.Android);
             client.AttachAuth(sp.GetRequiredService<OAuthClient>());
             return client;

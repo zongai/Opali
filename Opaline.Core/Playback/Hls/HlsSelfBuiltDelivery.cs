@@ -1,3 +1,4 @@
+using Opaline.Core.Net;
 using System.Net;
 using System.Text;
 using Opaline.Core.Models;
@@ -19,7 +20,7 @@ public sealed class HlsSelfBuiltDelivery : IDisposable
 
     public HlsSelfBuiltDelivery(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        _http = http ?? AppHttp.Create(TimeSpan.FromSeconds(30));
     }
 
     public string? LocalMasterUrl { get; private set; }

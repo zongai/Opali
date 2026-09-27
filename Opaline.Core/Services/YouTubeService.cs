@@ -71,4 +71,7 @@ public sealed class YouTubeService : IYouTubeService
 
     public Task<IReadOnlyList<PlaylistAddOption>> GetAddToPlaylistOptionsAsync(string videoId, CancellationToken ct = default)
         => _client.GetAddToPlaylistOptionsAsync(videoId, ct);
+
+    public Task<bool> SendFeedbackAsync(string feedbackToken, CancellationToken ct = default)
+        => _client.SendFeedbackAsync(feedbackToken, ct);
 }

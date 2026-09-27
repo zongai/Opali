@@ -134,6 +134,10 @@
                             <ComboBoxItem Content="Русский" Tag="ru" />
                             <ComboBoxItem Content="Tiếng Việt" Tag="vi" />
                         </ComboBox>
+                        <Button Content="不感兴趣" Command="{x:Bind ViewModel.NotInterestedCommand}"
+                                AutomationProperties.AutomationId="WatchNotInterested" />
+                        <Button Content="不推荐频道" Command="{x:Bind ViewModel.DontRecommendChannelCommand}"
+                                AutomationProperties.AutomationId="WatchDontRecommend" />
                         <Button Content="翻译标题"
                                 Command="{x:Bind ViewModel.TranslateTitleCommand}"
                                 AutomationProperties.AutomationId="WatchTranslateTitle" />

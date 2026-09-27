@@ -27,4 +27,6 @@ public interface IYouTubeService
     Task<IReadOnlyList<CaptionTrack>> FetchCaptionTracksIosAsync(string videoId, CancellationToken ct = default);
 
     Task<IReadOnlyList<PlaylistAddOption>> GetAddToPlaylistOptionsAsync(string videoId, CancellationToken ct = default);
+    Task<bool> SendFeedbackAsync(string feedbackToken, CancellationToken ct = default);
 }
+
