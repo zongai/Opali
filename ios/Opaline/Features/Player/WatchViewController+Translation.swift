@@ -140,31 +140,93 @@ extension WatchViewController {
     }
 
     func translateActiveCaptions() {
-        guard let lang = activeSubtitleLanguage,
-              let track = captionTracks.first(where: { $0.languageCode == lang }) else {
-            presentTranslationFailure(message: "player.translate.noCaptions".localized)
+        // Diagnose why captions cannot be translated before hitting the engines.
+        if captionTracks.isEmpty {
+            presentTranslationFailure(message: "player.translate.captions.noTracks".localized)
+            return
+        }
+        guard let lang = activeSubtitleLanguage else {
+            let available = captionTracks
+                .map { $0.name.isEmpty ? $0.languageCode : $0.name }
+                .joined(separator: ", ")
+            let msg = "player.translate.captions.notEnabled".localized
+                + "\n\n"
+                + "player.translate.captions.available".localized(with: available)
+            presentTranslationFailure(message: msg)
+            return
+        }
+        guard let track = captionTracks.first(where: { $0.languageCode == lang }) else {
+            presentTranslationFailure(
+                message: "player.translate.captions.trackMissing".localized(with: lang)
+            )
             return
         }
         guard !isTranslating else { return }
         isTranslating = true
+        let target = TranslationService.preferredTarget
         SubtitleService.shared.load(track: track) { [weak self] cues in
             guard let self else { return }
+            if cues.isEmpty {
+                DispatchQueue.main.async {
+                    self.isTranslating = false
+                    let detail = "player.translate.captions.loadEmpty".localized(with: lang)
+                    self.presentTranslationFailure(message: detail)
+                }
+                return
+            }
             let texts = cues.map(\.text)
-            TranslationService.shared.translateMany(texts) { result in
+            let nonEmpty = texts.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            if nonEmpty.isEmpty {
+                DispatchQueue.main.async {
+                    self.isTranslating = false
+                    self.presentTranslationFailure(
+                        message: "player.translate.captions.emptyText".localized
+                    )
+                }
+                return
+            }
+            // Same-language: already target — explain, do not call engines.
+            if let sample = nonEmpty.first,
+               let detected = TranslationService.detectSourceLanguage(of: sample),
+               TranslationLanguageNorm.isSameLanguage(detected, target) {
+                DispatchQueue.main.async {
+                    self.isTranslating = false
+                    self.presentTranslationFailure(
+                        message: "player.translate.captions.alreadyTarget".localized(
+                            with: detected, target
+                        )
+                    )
+                }
+                return
+            }
+            TranslationService.shared.translateMany(texts, target: target) { result in
                 DispatchQueue.main.async {
                     self.isTranslating = false
                     switch result {
                     case .success(let translated):
-                        let newCues = zip(cues, translated).map { cue, t in
-                            SubtitleCue(
-                                start: cue.start,
-                                end: cue.end,
-                                text: t.isEmpty ? cue.text : t
-                            )
+                        var changed = 0
+                        let newCues = zip(cues, translated).map { cue, t -> SubtitleCue in
+                            let out = t.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if out.isEmpty {
+                                return cue
+                            }
+                            if out != cue.text { changed += 1 }
+                            return SubtitleCue(start: cue.start, end: cue.end, text: out)
                         }
                         self.videoPlayerView?.setSubtitleCues(newCues)
+                        if changed == 0 {
+                            let msg = "player.translate.captions.noChange".localized(
+                                with: cues.count, target
+                            )
+                            self.presentTranslationFailure(message: msg)
+                        }
                     case .failure(let error):
-                        self.presentTranslationFailure(error: error)
+                        let base = (error as? LocalizedError)?.errorDescription
+                            ?? error.localizedDescription
+                        let msg = "player.translate.captions.engineFailed".localized(
+                            with: lang, target
+                        ) + "\n\n" + base
+                        self.presentTranslationFailure(message: msg)
                     }
                 }
             }
