@@ -137,24 +137,37 @@ enum TranslationPreferences {
         }
     }
 
-    /// Settings detail text: count + masked first key.
+    /// Mask one key for UI (show head/tail only).
+    static func maskKey(_ key: String) -> String {
+        let k = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !k.isEmpty else { return "••••" }
+        if k.count <= 8 { return "••••••••" }
+        return String(k.prefix(4)) + "••••" + String(k.suffix(4))
+    }
+
+    /// Settings detail: count + masked first key.
     static var deepLKeyDisplay: String {
         let keys = deepLAPIKeys
         guard !keys.isEmpty else {
             return "settings.translation.deepL.notSet".localized
         }
-        let first = keys[0]
-        let mask: String
-        if first.count <= 8 {
-            mask = "••••"
-        } else {
-            mask = String(first.prefix(4)) + "••••" + String(first.suffix(4))
-        }
-        if keys.count == 1 {
-            return mask
-        }
-        return String(format: "settings.translation.deepL.keyCount".localized, keys.count) + " · " + mask
+        let mask = maskKey(keys[0])
+        if keys.count == 1 { return mask }
+        return String(format: "settings.translation.deepL.keyCount".localized, keys.count)
+            + " · " + mask
     }
+
+    /// Multi-line masked list for the options sheet message.
+    static var deepLKeysMaskedSummary: String {
+        let keys = deepLAPIKeys
+        guard !keys.isEmpty else {
+            return "settings.translation.deepL.notSet".localized
+        }
+        return keys.enumerated().map { idx, k in
+            "#\(idx + 1)  \(maskKey(k))"
+        }.joined(separator: "\n")
+    }
+
 
     /// Text blob shown in the multi-key editor (one key per line).
     static var deepLKeysEditorText: String {

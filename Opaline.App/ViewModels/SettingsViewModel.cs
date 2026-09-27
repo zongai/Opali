@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml;
 using Opaline.App.Services;
 using Opaline.Core.Config;
@@ -24,6 +25,10 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool autoDubEnabled = true;
     [ObservableProperty] private bool ignoreAiDubs = true;
     [ObservableProperty] private string autoDubLanguage = "";
+    [ObservableProperty] private string deepLApiKey = "";
+    [ObservableProperty] private string deepLKeyMasked = "";
+    [ObservableProperty] private bool revealSecrets;
+    [ObservableProperty] private string secretsHint = "密钥仅存本机 LocalApplicationData/Opaline";
 
     public SettingsViewModel(
         IThemeService theme,
@@ -42,7 +47,9 @@ public partial class SettingsViewModel : ObservableObject
         };
         SponsorBlockEnabled = sb.Enabled;
         RydEnabled = ryd.Enabled;
-        SolverBaseUrl = AppUrls.SolverServer.BaseUrl;
+        SolverBaseUrl = AppSecrets.SolverBaseUrl;
+        DeepLApiKey = AppSecrets.DeepLApiKey;
+        DeepLKeyMasked = AppSecrets.MaskDeepLSummary();
         PreferAv1 = Av1Support.IsPreferred;
         Av1ProbeDetail = Av1Support.ProbeDetail;
         _ = RefreshAv1ProbeAsync();
@@ -70,8 +77,13 @@ public partial class SettingsViewModel : ObservableObject
 
     partial void OnSolverBaseUrlChanged(string value)
     {
-        if (!string.IsNullOrWhiteSpace(value))
-            AppUrls.SolverServer.BaseUrl = value.Trim();
+        AppSecrets.SolverBaseUrl = value ?? "";
+    }
+
+    partial void OnDeepLApiKeyChanged(string value)
+    {
+        AppSecrets.DeepLApiKey = value ?? "";
+        DeepLKeyMasked = AppSecrets.MaskDeepLSummary();
     }
 
     partial void OnPreferAv1Changed(bool value) => Av1Support.IsPreferred = value;
@@ -79,6 +91,12 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnIgnoreAiDubsChanged(bool value) => AutoDubPreference.IgnoreAiDubs = value;
     partial void OnAutoDubLanguageChanged(string value)
         => AutoDubPreference.LanguageOverride = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    [RelayCommand]
+    private void ClearDeepLKey()
+    {
+        DeepLApiKey = "";
+    }
 
     private async Task RefreshAv1ProbeAsync()
     {

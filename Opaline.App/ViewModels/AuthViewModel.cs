@@ -12,6 +12,8 @@ public partial class AuthViewModel : ObservableObject
     [ObservableProperty] private bool isSignedIn;
     [ObservableProperty] private bool isWaiting;
     [ObservableProperty] private string? userCode;
+    [ObservableProperty] private bool hasUserCode;
+
     [ObservableProperty] private string? verificationUrl;
     [ObservableProperty] private string? statusMessage;
 
@@ -33,6 +35,7 @@ public partial class AuthViewModel : ObservableObject
         {
             var device = await _oauth.RequestDeviceCodeAsync();
             UserCode = device.UserCode;
+            HasUserCode = !string.IsNullOrEmpty(device.UserCode);
             VerificationUrl = device.VerificationUrl;
             StatusMessage = $"Go to {device.VerificationUrl} and enter code: {device.UserCode}";
 
@@ -44,6 +47,7 @@ public partial class AuthViewModel : ObservableObject
                 IsSignedIn = true;
                 StatusMessage = "Signed in successfully. Session saved.";
                 UserCode = null;
+            HasUserCode = false;
             }
             else
             {
@@ -79,5 +83,6 @@ public partial class AuthViewModel : ObservableObject
         IsSignedIn = false;
         StatusMessage = "Signed out.";
         UserCode = null;
+            HasUserCode = false;
     }
 }

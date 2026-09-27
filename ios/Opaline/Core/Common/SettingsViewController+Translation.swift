@@ -178,7 +178,7 @@ extension SettingsViewController {
     private func showDeepLKeyOptions() {
         let sheet = UIAlertController(
             title: "settings.row.translationDeepLKey".localized,
-            message: TranslationPreferences.deepLKeyDisplay,
+            message: TranslationPreferences.deepLKeysMaskedSummary,
             preferredStyle: .actionSheet
         )
         sheet.addAction(UIAlertAction(
@@ -215,7 +215,7 @@ extension SettingsViewController {
         )
         alert.addTextField { tf in
             tf.placeholder = "settings.translation.deepL.placeholder".localized
-            tf.isSecureTextEntry = false
+            tf.isSecureTextEntry = true
             tf.autocapitalizationType = .none
             tf.autocorrectionType = .no
             tf.keyboardType = .asciiCapable
