@@ -105,6 +105,12 @@ extension WatchViewController {
         playerView.isFullscreen = false
         fullscreenSnapshot = nil
         isLeavingFullscreen = false
+        // Portrait-video fullscreen held a portrait lock; release on exit.
+        if orientationLock == .portrait {
+            orientationLock = nil
+            orientationLockHeld = nil
+            refreshSupportedOrientations()
+        }
         setNeedsStatusBarAppearanceUpdate()
         setNeedsUpdateOfHomeIndicatorAutoHidden()
         updateLayoutForSize()

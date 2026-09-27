@@ -76,8 +76,6 @@ extension WatchViewController: VideoPlayerViewDelegate {
 
     func videoPlayerViewDidTapFullscreen(_ playerView: VideoPlayerView) {
         // iPad rotates freely, so fullscreen there is a plain window fill.
-        // iPhone is portrait-only outside the player: the button rotates the
-        // interface, and the rotation is what enters or leaves fullscreen.
         guard UIDevice.current.userInterfaceIdiom != .pad else {
             if playerView.isFullscreen {
                 exitFullscreen(playerView: playerView)
@@ -86,16 +84,35 @@ extension WatchViewController: VideoPlayerViewDelegate {
             }
             return
         }
-        // Normally the two agree and the rotation drives the state. When they
-        // have drifted apart — landscape without fullscreen, because the
-        // interface got there without a rotation we could ride — asking for a
-        // rotation asks for nothing, so fix the state itself instead.
+        // Vertical (portrait) videos stay upright in fullscreen — do not force
+        // landscape. Window-fill only, orientation locked to portrait.
+        if playerView.isPortraitContent {
+            togglePortraitVideoFullscreen(playerView)
+            return
+        }
+        // Landscape videos: iPhone is portrait-only outside the player; the
+        // button rotates the interface, and the rotation enters/leaves fullscreen.
         let isLandscapeNow = view.bounds.width > view.bounds.height
         guard playerView.isFullscreen == isLandscapeNow else {
             syncFullscreenWithRotation(isLandscape: isLandscapeNow)
             return
         }
         rotateInterface(to: playerView.isFullscreen ? .portrait : .landscapeRight)
+    }
+
+    /// Fullscreen for vertical content without rotating to landscape.
+    private func togglePortraitVideoFullscreen(_ playerView: VideoPlayerView) {
+        if playerView.isFullscreen {
+            exitFullscreen(playerView: playerView)
+            orientationLock = nil
+            orientationLockHeld = nil
+            refreshSupportedOrientations()
+        } else {
+            orientationLock = .portrait
+            orientationLockHeld = .portrait
+            refreshSupportedOrientations()
+            enterFullscreen(playerView: playerView)
+        }
     }
 }
 

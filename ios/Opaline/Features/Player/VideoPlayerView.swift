@@ -29,6 +29,18 @@ final class VideoPlayerView: UIView {
         }
     }
 
+    /// True when the active item is taller than wide (Shorts / vertical).
+    /// Uses presentation size; falls back to the layer's video rect.
+    var isPortraitContent: Bool {
+        let size = playerLayer.player?.currentItem?.presentationSize ?? .zero
+        if size.width > 1, size.height > 1 {
+            return size.height > size.width
+        }
+        let rect = playerLayer.videoRect
+        guard rect.width > 1, rect.height > 1 else { return false }
+        return rect.height > rect.width
+    }
+
     var onTimeUpdate: ((Double) -> Void)?
     var onSkipTapped: (() -> Void)?
     var onNeedsFreshPlayer: (() -> Void)?

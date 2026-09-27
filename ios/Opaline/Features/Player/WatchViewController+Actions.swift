@@ -196,9 +196,18 @@ extension WatchViewController {
         }
         if UIDevice.current.userInterfaceIdiom == .pad {
             exitFullscreen(playerView: playerView)
-        } else {
-            // Rotating back to portrait is what leaves fullscreen on iPhone.
-            rotateInterface(to: .portrait)
+            return
         }
+        // Portrait-content fullscreen never rotated to landscape — exit in place.
+        let isLandscapeUI = view.bounds.width > view.bounds.height
+        if playerView.isPortraitContent || !isLandscapeUI {
+            exitFullscreen(playerView: playerView)
+            orientationLock = nil
+            orientationLockHeld = nil
+            refreshSupportedOrientations()
+            return
+        }
+        // Landscape-content fullscreen: rotating back to portrait leaves it.
+        rotateInterface(to: .portrait)
     }
 }
