@@ -54,6 +54,17 @@ public sealed partial class MainWindow : Window
             }
             catch (Exception ex) { CrashLog.Write("MainWindow.Resize", ex); }
 
+            try
+            {
+                var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
+                if (!System.IO.File.Exists(iconPath))
+                    iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "AppIcon.ico");
+                if (System.IO.File.Exists(iconPath))
+                    AppWindow.SetIcon(iconPath);
+            }
+            catch (Exception ex) { CrashLog.Write("MainWindow.SetIcon", ex); }
+
+
             _nav.Initialize(ContentFrame);
             ContentFrame.Navigated += ContentFrame_Navigated;
         }
