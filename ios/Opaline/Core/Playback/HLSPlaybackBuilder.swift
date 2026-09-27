@@ -34,20 +34,35 @@ enum HLSPlaybackBuilder {
         completion: @escaping (Result?) -> Void
     ) {
         let startTime = CACurrentMediaTime()
-        probeIdentity(input: input) { healthy in
+        // Identity probe (HEAD) and SIDX range fetches in parallel — previously
+        // sequential, adding one RTT before any media index could load.
+        let group = DispatchGroup()
+        var healthy = true
+        var videoData: Data?
+        var audioData: Data?
+        group.enter()
+        probeIdentity(input: input) { ok in
+            healthy = ok
+            group.leave()
+        }
+        group.enter()
+        fetchSidxPair(input: input) { v, a in
+            videoData = v
+            audioData = a
+            group.leave()
+        }
+        group.notify(queue: .global(qos: .userInitiated)) {
             guard healthy else {
                 completion(nil)
                 return
             }
-            fetchSidxPair(input: input) { videoData, audioData in
-                let result = processSidxData(
-                    input: input,
-                    videoData: videoData,
-                    audioData: audioData,
-                    startTime: startTime
-                )
-                completion(result)
-            }
+            let result = processSidxData(
+                input: input,
+                videoData: videoData,
+                audioData: audioData,
+                startTime: startTime
+            )
+            completion(result)
         }
     }
 }

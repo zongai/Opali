@@ -2,14 +2,24 @@ import AVFoundation
 import UIKit
 
 enum PlaybackBufferPolicy {
-    static let defaultForwardBufferDuration: TimeInterval = 20.0
+    /// Shorter than before (20s) so first frames arrive sooner; AVPlayer still
+    /// grows the buffer while playing. Background stays deeper for stability.
+    static let defaultForwardBufferDuration: TimeInterval = 8.0
     static let backgroundBufferDuration: TimeInterval = 30.0
+    /// Soft cap on cellular so ABR / progressive do not jump to heavy bitrates.
+    static let cellularPeakBitRate: Double = 2_800_000
 
     static func configure(
         item: AVPlayerItem,
         forwardBufferDuration: TimeInterval = defaultForwardBufferDuration
     ) {
         item.preferredForwardBufferDuration = forwardBufferDuration
+        if NetworkType.isCellular {
+            item.preferredPeakBitRate = cellularPeakBitRate
+        } else {
+            // 0 = no artificial cap (system ABR / fixed ladder decide).
+            item.preferredPeakBitRate = 0
+        }
         // The session runs in .moviePlayback, which lets the system spatialize
         // even plain stereo on AirPods. Allow it only where the content really
         // has the channels for it (#119).

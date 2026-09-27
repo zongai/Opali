@@ -102,7 +102,7 @@ private extension InnertubeClient {
             }
         let video = selectBestVideo(
             from: adaptive,
-            maxHeight: VideoQualityStore.maxHeight
+            maxHeight: VideoQualityStore.startMaxHeight
         )
         return SelectedFmts(
             progressive: progressive,
@@ -168,7 +168,16 @@ private extension InnertubeClient {
                         fmtHeight(fmt) <= $0
                     } ?? true
             }
-            .max { heightBitrateLess($0, $1) }
+            // Prefer taller; at equal height prefer AVC (faster cold start than AV1).
+            .max { a, b in
+                let ha = fmtHeight(a)
+                let hb = fmtHeight(b)
+                if ha != hb { return ha < hb }
+                let avcA = (a["mimeType"] as? String)?.contains("avc1") == true
+                let avcB = (b["mimeType"] as? String)?.contains("avc1") == true
+                if avcA != avcB { return !avcA }
+                return heightBitrateLess(a, b)
+            }
     }
 
     static func buildSabrInfo(

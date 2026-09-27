@@ -91,7 +91,7 @@ final class LiveHLSPlayback {
         url: URL, info: DirectPlaybackInfo
     ) -> PreparedPlayback {
         startQuality = Self.autoQuality
-        guard let capped = cappedQuality(maxHeight: VideoQualityStore.maxHeight),
+        guard let capped = cappedQuality(maxHeight: VideoQualityStore.startMaxHeight),
               let pinned = prepared(for: capped, info: info) else {
             return prepared(item: AVPlayerItem(url: url), info: info)
         }

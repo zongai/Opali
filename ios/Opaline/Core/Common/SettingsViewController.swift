@@ -1032,6 +1032,16 @@ enum VideoQualityStore {
         ][selected] ?? 1_080
     }
 
+    /// Height used for the *first* stream pick. Auto starts at 720p (Wi-Fi)
+    /// or 480p (cellular) so the first frame arrives sooner; the quality menu
+    /// still allows higher tiers up to `maxHeight`.
+    static var startMaxHeight: Int? {
+        if selected == "Auto" {
+            return NetworkType.isCellular ? 480 : 720
+        }
+        return maxHeight
+    }
+
     /// Display text for a stored value — "Auto" is a stored constant
     /// (never localized in UserDefaults), only its display is translated.
     static func displayName(_ quality: String) -> String {
