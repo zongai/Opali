@@ -25,7 +25,7 @@
             AutomationProperties.AutomationId="MainNav">
 
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="Home" Tag="home"
+                <NavigationViewItem Content="首页" Tag="home"
                                     AutomationProperties.AutomationId="NavHome">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE80F;" />
@@ -37,13 +37,13 @@
                         <FontIcon Glyph="&#xE714;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Subscriptions" Tag="subscriptions"
+                <NavigationViewItem Content="订阅" Tag="subscriptions"
                                     AutomationProperties.AutomationId="NavSubscriptions">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8F1;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Library" Tag="library"
+                <NavigationViewItem Content="媒体库" Tag="library"
                                     AutomationProperties.AutomationId="NavLibrary">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8A5;" />
@@ -54,7 +54,7 @@
             <NavigationView.AutoSuggestBox>
                 <AutoSuggestBox
                     x:Name="SearchBox"
-                    PlaceholderText="Search"
+                    PlaceholderText="搜索"
                     QueryIcon="Find"
                     QuerySubmitted="SearchBox_QuerySubmitted"
                     TextChanged="SearchBox_TextChanged"
@@ -80,8 +80,8 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock x:Name="MiniTitle" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                <Button Grid.Column="1" Content="Open" Click="MiniOpen_Click" Padding="12,4" />
-                <Button Grid.Column="2" Content="Next" Click="MiniNext_Click" Padding="12,4" />
+                <Button Grid.Column="1" Content="打开" Click="MiniOpen_Click" Padding="12,4" />
+                <Button Grid.Column="2" Content="下一个" Click="MiniNext_Click" Padding="12,4" />
                 <Button Grid.Column="3" Content="×" Click="MiniClose_Click" Padding="12,4" />
             </Grid>
         </Border>
