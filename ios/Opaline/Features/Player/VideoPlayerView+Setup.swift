@@ -345,8 +345,9 @@ extension VideoPlayerView {
             subtitleLabel.trailingAnchor.constraint(
                 equalTo: trailingAnchor, constant: -16
             ),
+            // Closer to the video bottom (was -56); still clears the control bar.
             subtitleLabel.bottomAnchor.constraint(
-                equalTo: bottomAnchor, constant: -56
+                equalTo: bottomAnchor, constant: -28
             )
         ])
     }
